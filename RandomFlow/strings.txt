@@ -1,0 +1,247 @@
+RANDOMFLOW
+	EN	Random Flow
+	NL	Random Flow
+
+RANDOMFLOW_DESC
+	EN	Throwaway test harness: calls TrackSelector.pm directly against the live library.db/persist.db and logs the results.
+	NL	Wegwerp-testplugin: roept TrackSelector.pm rechtstreeks aan tegen de draaiende library.db/persist.db en logt de resultaten.
+
+PLUGIN_RANDOMFLOW_GLOBAL_SETTINGS
+	EN	Random Flow
+	NL	Random Flow
+
+PLUGIN_RANDOMFLOW_PLAYER_SETTINGS
+	EN	Random Flow
+	NL	Random Flow
+
+PLUGIN_RANDOMFLOW_PLAYCOUNTPROVIDER
+	EN	Play count source
+	NL	Afspeelaantal-bron
+
+PLUGIN_RANDOMFLOW_PLAYCOUNTPROVIDER_DESC
+	EN	Which play count / last-played source to use for the playcount cap and artist cooldown (per player, below). "Both" uses the highest of Lyrion's own count and APC's count, never the sum.
+	NL	Welke afspeelaantal-/laatst-afgespeeld-bron gebruikt wordt voor de afspeelaantal-limiet en artiest-cooldown (per speler, hieronder). "Beide" gebruikt de hoogste van Lyrion's eigen aantal en het APC-aantal, nooit de som.
+
+PLUGIN_RANDOMFLOW_PROVIDER_LYRION
+	EN	Lyrion only
+	NL	Alleen Lyrion
+
+PLUGIN_RANDOMFLOW_PROVIDER_APC
+	EN	APC only
+	NL	Alleen APC
+
+PLUGIN_RANDOMFLOW_PROVIDER_BOTH
+	EN	Both (highest of the two)
+	NL	Beide (hoogste van de twee)
+
+PLUGIN_RANDOMFLOW_WOBBLE
+	EN	Wobble
+	NL	Wobble
+
+PLUGIN_RANDOMFLOW_WOBBLE_DESC
+	EN	How much randomness is mixed into the pick, always from within your genre selection above - it never lets a track from outside those genres through. 0 (Tight) always respects your preferred/less-preferred artist weighting above fully; 100 (Loose) ignores it and picks purely at random within the genre selection. This only has a visible effect when a preferred or less-preferred artist is configured above - with nothing weighted, every track already has equal odds and Wobble has nothing to change.
+	NL	Hoeveel willekeur er wordt gemengd door de keuze, altijd binnen je genreselectie hierboven - een track buiten die genres komt er nooit doorheen. 0 (Tight) houdt altijd volledig rekening met je voorkeurs-/minder-voorkeursartiest-weging hierboven; 100 (Loose) negeert dat en kiest puur willekeurig binnen de genreselectie. Dit heeft alleen zichtbaar effect als er hierboven een voorkeurs- of minder-voorkeursartiest is ingesteld - is er niets gewogen, dan heeft elke track al gelijke kans en verandert Wobble niets.
+
+PLUGIN_RANDOMFLOW_POOLSIZE
+	EN	Ask size
+	NL	Ask size
+
+PLUGIN_RANDOMFLOW_POOLSIZE_DESC
+	EN	How many candidate tracks are randomly sampled before a weighted pick is made from them. A larger pool makes Style/Wobble/artist weighting more noticeable but is slightly slower; a very small pool can make weighting barely visible.
+	NL	Hoeveel kandidaat-tracks er willekeurig worden bemonsterd voordat er een gewogen keuze uit gemaakt wordt. Een grotere pool maakt Style/Wobble/artiestweging beter merkbaar maar is iets trager; een erg kleine pool maakt weging nauwelijks zichtbaar.
+
+PLUGIN_RANDOMFLOW_BATCHSIZE
+	EN	Batch size
+	NL	Batchgrootte
+
+PLUGIN_RANDOMFLOW_BATCHSIZE_DESC
+	EN	How many tracks a batch (Start Batch / top up) queues at once. 10-100.
+	NL	Hoeveel tracks een batch (Start Batch / aanvullen) in één keer in de wachtrij zet. 10-100.
+
+PLUGIN_RANDOMFLOW_ARTISTCOOLDOWNTRACKS
+	EN	Artist cooldown (tracks)
+	NL	Artiest-cooldown (aantal tracks)
+
+PLUGIN_RANDOMFLOW_ARTISTCOOLDOWNTRACKS_DESC
+	EN	An artist with a track among the last N tracks played is excluded entirely - regardless of any preferred-artist weighting. 0 disables the cooldown.
+	NL	Een artiest waarvan een track voorkomt in de laatst afgespeelde N tracks wordt volledig uitgesloten - ongeacht eventuele voorkeursartiest-weging. 0 schakelt de cooldown uit.
+
+PLUGIN_RANDOMFLOW_ALBUMCOOLDOWNTRACKS
+	EN	Album cooldown (tracks)
+	NL	Album-cooldown (aantal tracks)
+
+PLUGIN_RANDOMFLOW_ALBUMCOOLDOWNTRACKS_DESC
+	EN	Same idea as Artist cooldown above, but for the album: an album with a track among the last N tracks played is excluded entirely. Independent of Artist cooldown - the artist can still come back sooner, just not this exact album. 0 disables the cooldown.
+	NL	Zelfde idee als Artiest-cooldown hierboven, maar dan voor het album: een album waarvan een track voorkomt in de laatst afgespeelde N tracks wordt volledig uitgesloten. Onafhankelijk van Artiest-cooldown - de artiest mag eerder terugkomen, alleen dit specifieke album niet. 0 schakelt de cooldown uit.
+
+PLUGIN_RANDOMFLOW_MAXPLAYCOUNT
+	EN	Max play count
+	NL	Max afspeelaantal
+
+PLUGIN_RANDOMFLOW_MAXPLAYCOUNT_DESC
+	EN	Tracks with a play count above this are excluded. Leave empty for no limit. Uses the play count source chosen in the global settings.
+	NL	Tracks met een afspeelaantal hoger dan dit worden uitgesloten. Laat leeg voor geen limiet. Gebruikt de afspeelaantal-bron die in de globale instellingen is gekozen.
+
+PLUGIN_RANDOMFLOW_NOLIMIT
+	EN	no limit
+	NL	geen limiet
+
+PLUGIN_RANDOMFLOW_HISTORYLIMIT
+	EN	Play history
+	NL	Afspeelgeschiedenis
+
+PLUGIN_RANDOMFLOW_HISTORYLIMIT_DESC
+	EN	How many already-played tracks a running mix keeps in the queue, on top of the currently playing and next-up track - older ones are automatically trimmed off. 0 keeps no history at all (just playing + next up). Leave empty for no limit (the queue keeps growing, previous behaviour).
+	NL	Hoeveel al afgespeelde tracks een lopende mix in de wachtrij bewaart, naast de track die nu speelt en de eerstvolgende - oudere worden automatisch verwijderd. 0 bewaart geen geschiedenis (alleen spelend + opkomend). Laat leeg voor geen limiet (de wachtrij blijft doorgroeien, zoals voorheen).
+
+PLUGIN_RANDOMFLOW_HISTORYDISPLAYCOUNT
+	EN	History panel track count
+	NL	Aantal tracks in History-paneel
+
+PLUGIN_RANDOMFLOW_HISTORYDISPLAYCOUNT_DESC
+	EN	How many recently played tracks the Live page's History panel shows, based on Lyrion's own play history (not the queue). Leave empty for the default (20).
+	NL	Hoeveel recent afgespeelde tracks het History-paneel op de Live-pagina toont, gebaseerd op Lyrion's eigen afspeelgeschiedenis (niet de wachtrij). Laat leeg voor de standaardwaarde (20).
+
+PLUGIN_RANDOMFLOW_FILTERS
+	EN	Genre filters
+	NL	Genre-filters
+
+PLUGIN_RANDOMFLOW_FILTERS_DESC
+	EN	Named genre filters, like MusicIP's filters - build them here, then pick one per player below (and later on the Live page) to switch mixes quickly without re-picking genres every time.
+	NL	Benoemde genre-filters, zoals de filters in MusicIP - stel ze hier samen en kies er hieronder per speler een (en straks ook op de Live-pagina) om snel van mix te wisselen zonder telkens opnieuw genres aan te vinken.
+
+PLUGIN_RANDOMFLOW_FILTERNAME_PLACEHOLDER
+	EN	Filter name
+	NL	Filternaam
+
+PLUGIN_RANDOMFLOW_NEWFILTER_PLACEHOLDER
+	EN	New filter name...
+	NL	Naam nieuw filter...
+
+PLUGIN_RANDOMFLOW_CLEARNAME_TO_DELETE
+	EN	Clear the name and save to delete this filter.
+	NL	Maak de naam leeg en sla op om dit filter te verwijderen.
+
+PLUGIN_RANDOMFLOW_FILTERARTISTS_PLACEHOLDER
+	EN	Artists (optional), e.g. Daft Punk, Justice
+	NL	Artiesten (optioneel), bijv. Daft Punk, Justice
+
+PLUGIN_RANDOMFLOW_FILTERARTISTS_DESC
+	EN	Optional - tracks by these artists (partial match, not case-sensitive) are also included, on top of the genres above, even if their genre isn't selected.
+	NL	Optioneel - tracks van deze artiesten (gedeeltelijke match, hoofdletterongevoelig) worden ook meegenomen, bovenop de genres hierboven, ook als hun genre niet is aangevinkt.
+
+PLUGIN_RANDOMFLOW_FILTERYEARS_PLACEHOLDER
+	EN	Years (optional), e.g. 1985, 1990-1999, 2005
+	NL	Jaartallen (optioneel), bijv. 1985, 1990-1999, 2005
+
+PLUGIN_RANDOMFLOW_FILTERYEARS_DESC
+	EN	Optional - a track's year must match one of these (single years and/or ranges, comma-separated) on top of the genre/artist match above, not instead of it.
+	NL	Optioneel - het jaartal van een track moet overeenkomen met een van deze (losse jaartallen en/of bereiken, komma-gescheiden), bovenop de genre/artiest-match hierboven, niet in plaats daarvan.
+
+PLUGIN_RANDOMFLOW_GENRES_SELECTED
+	EN	genres selected
+	NL	genres geselecteerd
+
+PLUGIN_RANDOMFLOW_ACTIVEFILTER
+	EN	Filter
+	NL	Filter
+
+PLUGIN_RANDOMFLOW_ACTIVEFILTER_DESC
+	EN	Which filter this player uses - each filter combines genres AND optionally specific artists. Manage the list of filters on Random Flow's own plugin settings page (Settings > Plugins), not this player settings page.
+	NL	Welk filter deze speler gebruikt - elk filter combineert genres ÉN eventueel specifieke artiesten. Beheer de lijst met filters op Random Flow's eigen plugin-instellingenpagina (Instellingen > Plugins), niet op deze spelerinstellingenpagina.
+
+PLUGIN_RANDOMFLOW_NOFILTER
+	EN	(no filter - all genres)
+	NL	(geen filter - alle genres)
+
+PLUGIN_RANDOMFLOW_NOFILTERS_YET
+	EN	No filters created yet - add one in the global settings above.
+	NL	Nog geen filters aangemaakt - voeg er een toe in de globale instellingen hierboven.
+
+PLUGIN_RANDOMFLOW_GENREBLOCK
+	EN	Quick genre block
+	NL	Snel genres blokkeren
+
+PLUGIN_RANDOMFLOW_GENREBLOCK_DESC
+	EN	Genres to exclude from the filter above for this player only, comma-separated - handy for a quick tweak without editing the filter itself.
+	NL	Genres die voor alleen deze speler uit het filter hierboven worden gehaald, komma-gescheiden - handig voor een snelle aanpassing zonder het filter zelf te wijzigen.
+
+PLUGIN_RANDOMFLOW_GENREBLOCK_PLACEHOLDER
+	EN	e.g. Live, Karaoke
+	NL	bijv. Live, Karaoke
+
+PLUGIN_RANDOMFLOW_NOFILTER_WARNING
+	EN	No filter chosen - pick one in this player's settings.
+	NL	Geen filter gekozen - kies er een in de instellingen van deze speler.
+
+PLUGIN_RANDOMFLOW_NOTRACK_WARNING
+	EN	No track found - check the filter, or the server log for a database issue.
+	NL	Geen track gevonden - controleer het filter, of het serverlog voor een databaseprobleem.
+
+PLUGIN_RANDOMFLOW_AUTOMIXOFF_WARNING
+	EN	Auto Mix is disabled - enable it first.
+	NL	Auto Mix staat uit - zet deze eerst aan.
+
+PLUGIN_RANDOMFLOW_ALARM
+	EN	Random Flow Mix
+	NL	Random Flow Mix
+
+PLUGIN_RANDOMFLOW_NOGENRES
+	EN	No genres found in your library yet - run a library scan first.
+	NL	Nog geen genres gevonden in je bibliotheek - voer eerst een bibliotheekscan uit.
+
+PLUGIN_RANDOMFLOW_EXCLUDERATINGS
+	EN	Exclude ratings
+	NL	Beoordelingen uitsluiten
+
+PLUGIN_RANDOMFLOW_EXCLUDERATINGS_DESC
+	EN	Tracks with one of these star ratings are excluded entirely.
+	NL	Tracks met een van deze sterrenbeoordelingen worden volledig uitgesloten.
+
+PLUGIN_RANDOMFLOW_ARTISTBLOCK
+	EN	Blocked artists
+	NL	Geblokkeerde artiesten
+
+PLUGIN_RANDOMFLOW_ARTISTBLOCK_DESC
+	EN	Artists that are always excluded from this mix, one per line.
+	NL	Artiesten die altijd worden uitgesloten van deze mix, één per regel.
+
+PLUGIN_RANDOMFLOW_PREFERREDARTISTS
+	EN	Preferred artists
+	NL	Voorkeursartiesten
+
+PLUGIN_RANDOMFLOW_PREFERREDARTISTS_DESC
+	EN	Artists that get a weighting boost (see the weight below), one per line. They can still be excluded by the cooldown, blocked-artist list, playcount cap or rating exclusion above - preference never overrides a hard exclusion.
+	NL	Artiesten die een gewichtsboost krijgen (zie het gewicht hieronder), één per regel. Ze kunnen nog steeds worden uitgesloten door de cooldown, geblokkeerde-artiestenlijst, afspeelaantal-limiet of beoordelingsuitsluiting hierboven - voorkeur gaat nooit voor een harde uitsluiting.
+
+PLUGIN_RANDOMFLOW_PREFERREDWEIGHT
+	EN	Preferred artist weight
+	NL	Gewicht voorkeursartiest
+
+PLUGIN_RANDOMFLOW_PREFERREDWEIGHT_DESC
+	EN	How much more likely a preferred artist is to be picked, relative to a neutral track (1 = no boost). Wobble above can reduce this effect.
+	NL	Hoeveel waarschijnlijker een voorkeursartiest gekozen wordt, ten opzichte van een neutrale track (1 = geen boost). Wobble hierboven kan dit effect verminderen.
+
+PLUGIN_RANDOMFLOW_LESSPREFERREDARTISTS
+	EN	Less preferred artists
+	NL	Minder-voorkeursartiesten
+
+PLUGIN_RANDOMFLOW_LESSPREFERREDARTISTS_DESC
+	EN	Artists that get a weighting penalty (see the weight below), one per line. Not a hard exclusion - use the blocked-artist list above for that.
+	NL	Artiesten die een gewichtsboete krijgen (zie het gewicht hieronder), één per regel. Geen harde uitsluiting - gebruik daarvoor de geblokkeerde-artiestenlijst hierboven.
+
+PLUGIN_RANDOMFLOW_LESSPREFERREDWEIGHT
+	EN	Less preferred artist weight
+	NL	Gewicht minder-voorkeursartiest
+
+PLUGIN_RANDOMFLOW_LESSPREFERREDWEIGHT_DESC
+	EN	How much less likely a less-preferred artist is to be picked, relative to a neutral track (1 = no penalty, lower = stronger penalty).
+	NL	Hoeveel minder waarschijnlijk een minder-voorkeursartiest gekozen wordt, ten opzichte van een neutrale track (1 = geen boete, lager = sterkere boete).
+
+PLUGIN_RANDOMFLOW_QUICKPLAY
+	EN	Start RandomFlow Mix
+	NL	Start RandomFlow Mix
+
+PLUGIN_RANDOMFLOW_LIVE
+	EN	RandomFlow
+	NL	RandomFlow

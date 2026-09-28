@@ -1,0 +1,15 @@
+<extension>
+	<details>
+		<title lang="EN">Random Flow</title>
+	</details>
+	<name>RANDOMFLOW</name>
+	<version>1.0</version>
+	<creator>Henk</creator>
+	<icon>plugins/RandomFlow/HTML/images/randomflow_svg.png</icon>
+	<module>Plugins::RandomFlow::Plugin</module>
+	<targetApplication>
+		<id>Logitech Media Server</id>
+		<minVersion>7.9</minVersion>
+		<maxVersion>*</maxVersion>
+	</targetApplication>
+</extension>

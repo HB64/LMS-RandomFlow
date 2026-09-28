@@ -1,0 +1,86 @@
+[% PROCESS settings/header.html %]
+
+[% IF prefs %]
+
+	[%# Henk, 26-09-2026: the old Mix status/Start/Stop panel that used to  %]
+	[%# live here is gone - fully superseded by the Live page's own Auto   %]
+	[%# Mix toggle and Start New Mix button.                               %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_POOLSIZE" desc="PLUGIN_RANDOMFLOW_POOLSIZE_DESC" %]
+		<input type="text" class="stdedit sliderInput_10_2000" name="pref_poolSize" id="poolSize" value="[% prefs.pref_poolSize | html %]" size="6">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_BATCHSIZE" desc="PLUGIN_RANDOMFLOW_BATCHSIZE_DESC" %]
+		<input type="text" class="stdedit sliderInput_10_100" name="pref_batchSize" id="batchSize" value="[% prefs.pref_batchSize | html %]" size="5">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_ARTISTCOOLDOWNTRACKS" desc="PLUGIN_RANDOMFLOW_ARTISTCOOLDOWNTRACKS_DESC" %]
+		<input type="text" class="stdedit sliderInput_0_100" name="pref_artistCooldownTracks" id="artistCooldownTracks" value="[% prefs.pref_artistCooldownTracks | html %]" size="5">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_ALBUMCOOLDOWNTRACKS" desc="PLUGIN_RANDOMFLOW_ALBUMCOOLDOWNTRACKS_DESC" %]
+		<input type="text" class="stdedit sliderInput_0_100" name="pref_albumCooldownTracks" id="albumCooldownTracks" value="[% prefs.pref_albumCooldownTracks | html %]" size="5">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_MAXPLAYCOUNT" desc="PLUGIN_RANDOMFLOW_MAXPLAYCOUNT_DESC" %]
+		<input type="text" class="stdedit" name="pref_maxPlaycount" id="maxPlaycount" value="[% prefs.pref_maxPlaycount | html %]" size="6" placeholder="[% "PLUGIN_RANDOMFLOW_NOLIMIT" | string %]">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_ACTIVEFILTER" desc="PLUGIN_RANDOMFLOW_ACTIVEFILTER_DESC" %]
+		[% IF filters.size %]
+			<select class="stdedit" name="pref_activeFilterId" id="activeFilterId">
+				<option value="">[% "PLUGIN_RANDOMFLOW_NOFILTER" | string %]</option>
+				[% FOREACH filter = filters %]
+					<option value="[% filter.id | html %]"[% IF prefs.pref_activeFilterId == filter.id %] selected[% END %]>[% filter.name | html %]</option>
+				[% END %]
+			</select>
+		[% ELSE %]
+			<div>[% "PLUGIN_RANDOMFLOW_NOFILTERS_YET" | string %]</div>
+		[% END %]
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_GENREBLOCK" desc="PLUGIN_RANDOMFLOW_GENREBLOCK_DESC" %]
+		<input type="text" class="stdedit" name="pref_genreBlock" id="genreBlock" value="[% prefs.pref_genreBlock | html %]" style="width:100%; max-width:280px; box-sizing:border-box;" placeholder="[% "PLUGIN_RANDOMFLOW_GENREBLOCK_PLACEHOLDER" | string %]">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_EXCLUDERATINGS" desc="PLUGIN_RANDOMFLOW_EXCLUDERATINGS_DESC" %]
+		[% FOREACH r = [1,2,3,4,5] %]
+			<label><input type="checkbox" name="pref_rating_[% r %]" value="1"[% IF selectedRatingLookup.$r %] checked[% END %]> [% r %]</label>
+		[% END %]
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_ARTISTBLOCK" desc="PLUGIN_RANDOMFLOW_ARTISTBLOCK_DESC" %]
+		<textarea class="stdedit" name="pref_artistBlock" id="artistBlock" rows="5" cols="40">[% prefs.pref_artistBlock | html %]</textarea>
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_PREFERREDARTISTS" desc="PLUGIN_RANDOMFLOW_PREFERREDARTISTS_DESC" %]
+		<textarea class="stdedit" name="pref_preferredArtists" id="preferredArtists" rows="5" cols="40">[% prefs.pref_preferredArtists | html %]</textarea>
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_PREFERREDWEIGHT" desc="PLUGIN_RANDOMFLOW_PREFERREDWEIGHT_DESC" %]
+		<input type="text" class="stdedit sliderInput_0_5" name="pref_preferredWeight" id="preferredWeight" value="[% prefs.pref_preferredWeight | html %]" size="5">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_LESSPREFERREDARTISTS" desc="PLUGIN_RANDOMFLOW_LESSPREFERREDARTISTS_DESC" %]
+		<textarea class="stdedit" name="pref_lessPreferredArtists" id="lessPreferredArtists" rows="5" cols="40">[% prefs.pref_lessPreferredArtists | html %]</textarea>
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_LESSPREFERREDWEIGHT" desc="PLUGIN_RANDOMFLOW_LESSPREFERREDWEIGHT_DESC" %]
+		<input type="text" class="stdedit sliderInput_0_5" name="pref_lessPreferredWeight" id="lessPreferredWeight" value="[% prefs.pref_lessPreferredWeight | html %]" size="5">
+	[% END %]
+
+	[%# Moved here from just under Mix Control (24-09-2026, Henk's request) - Wobble only  %]
+	[%# has any effect once a Preferred/Less Preferred artist weight is actually set (see  %]
+	[%# its own _DESC string), so it reads more clearly grouped with those two settings     %]
+	[%# than sitting on its own near the top of the page.                                   %]
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_WOBBLE" desc="PLUGIN_RANDOMFLOW_WOBBLE_DESC" %]
+		<input type="text" class="stdedit sliderInput_0_100" name="pref_wobble" id="wobble" value="[% prefs.pref_wobble | html %]" size="5">
+	[% END %]
+
+[% ELSE %]
+	<div class="noPlayerPanel">
+		[% PROCESS status_noclients.html ajaxUpdate=1 %]
+	</div>
+[% END %]
+
+[% PROCESS settings/footer.html %]
