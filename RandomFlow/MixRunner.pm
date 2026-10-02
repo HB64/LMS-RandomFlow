@@ -35,12 +35,13 @@ package Plugins::RandomFlow::MixRunner;
 #     switching SugarCube's Chain off, it does NOT touch whatever is
 #     currently queued or playing, it only stops sustaining it.
 #
-# Deliberately NOT done (yet, same as SugarCube's own DSTM handling):
-# no interaction with Lyrion's own "Don't Stop The Music" plugin. If
-# that turns out to matter here too, SugarCube's own fix (flip that
-# player's DSTM provider pref off when the mix starts, restore it when
-# it stops) is a small, self-contained addition to layer on separately
-# once this basic wrapper is confirmed working.
+# DSTM (Henk, 30-09-2026): Auto Mix already turns Lyrion's own "Don't
+# Stop The Music" off/on for a player while it runs (see Plugin.pm's
+# mixRunning watcher). dstmHandler() below is the separate, opposite
+# direction - RandomFlow registered as a selectable DSTM PROVIDER, for
+# players that use DSTM's own on/off switch instead of Auto Mix. Same
+# TrackSelector picks either way, just handed back via DSTM's own
+# callback instead of queued directly.
 #
 # SYNCED PLAYERS (e.g. a stereo-paired Boom Links/Boom Rechts, Henk's
 # case, found 20-09-2026): Lyrion ALWAYS sends the 'playlist newsong'
@@ -74,6 +75,7 @@ use Slim::Player::Client;
 use Slim::Player::Playlist;
 use Slim::Player::Source;
 use Slim::Music::Info;
+use Slim::Schema;
 use Slim::Utils::Prefs;
 use Slim::Utils::Timers;
 use Slim::Utils::Log;
@@ -150,6 +152,10 @@ sub startMix {
         return 0;
     }
 
+    if (($criteria->{mixMode} || 'songs') eq 'albums') {
+        return _startAlbumMix($client, $master, $sourceClient, $criteria);
+    }
+
     $client->execute(['playlist', 'clear']);
 
     my $picked = TrackSelector::selectTracks(%$criteria, count => 1);
@@ -165,6 +171,34 @@ sub startMix {
     $prefs->client($master)->set('mixRunning', 1);
     $prefs->client($master)->set('mixSourceClientId', $sourceClient->id);
     $log->info("RandomFlow::MixRunner: mix started for " . $client->name . " - queued '" . $picked->[0]{title} . "' by '" . ($picked->[0]{artist} // '?') . "'.");
+    return 1;
+}
+
+# Album Mix mode's startMix (Henk, 29-09-2026): same idea, but the pick
+# is a whole album (TrackSelector::selectAlbums), queued in full.
+# mixNextAlbumTrackCount is reset to 0 - nothing is queued ahead yet,
+# see _queueNextAlbum()/replaceNext() below for how that fills in once
+# the mix runs long enough to top up.
+sub _startAlbumMix {
+    my ($client, $master, $sourceClient, $criteria) = @_;
+
+    $client->execute(['playlist', 'clear']);
+
+    my $albums = TrackSelector::selectAlbums(%$criteria, count => 1);
+    if (!@$albums || !@{ $albums->[0]{tracks} }) {
+        $log->warn("RandomFlow::MixRunner: startMix (album mode) - no album found for " . $client->name . " (check the player's filter/block settings, or the library/database - see the log above this line for the actual reason).");
+        $prefs->client($master)->set('mixRunning', 0);
+        _warnNoTrack($client);
+        return 0;
+    }
+
+    my $album = $albums->[0];
+    $client->execute(['playlist', 'add', $_->{url}]) for @{ $album->{tracks} };
+    $client->execute(['play']);
+    $prefs->client($master)->set('mixRunning', 1);
+    $prefs->client($master)->set('mixSourceClientId', $sourceClient->id);
+    $prefs->client($master)->set('mixNextAlbumTrackCount', 0);
+    $log->info("RandomFlow::MixRunner: album mix started for " . $client->name . " - queued '" . $album->{albumTitle} . "' by '" . ($album->{albumArtist} // '?') . "' (" . scalar(@{ $album->{tracks} }) . " track(s)).");
     return 1;
 }
 
@@ -284,19 +318,6 @@ sub replaceNext {
     my $master = $client->can('master') ? $client->master : $client;
     return unless $prefs->client($master)->get('mixRunning');
 
-    my $listLength   = Slim::Player::Playlist::count($master);
-    my $playingIndex = Slim::Player::Source::playingSongIndex($master);
-    return unless ($listLength - $playingIndex) == 2;   # exactly one track queued after the current one
-
-    # 'playlist delete' addresses the queue by plain index, not URL -
-    # no need to look up the upcoming track's own URL just to remove
-    # it. Since it's always the LAST entry in this plugin's queue
-    # (never more than current+1, see the comment above), the
-    # 'playlist add' below - which always appends - lands it right
-    # back in the same "next up" slot once the fresh pick is queued.
-    my $nextIndex = $playingIndex + 1;
-    $master->execute(['playlist', 'delete', $nextIndex]);
-
     # Same sync-group source resolution as startMix/_maybeQueueNext -
     # see the SYNCED PLAYERS design note at the top of this file.
     my $sourceId     = $prefs->client($master)->get('mixSourceClientId');
@@ -309,6 +330,23 @@ sub replaceNext {
         _warnNoFilter($master);
         return;
     }
+
+    if (($criteria->{mixMode} || 'songs') eq 'albums') {
+        return _replaceNextAlbum($master, $criteria);
+    }
+
+    my $listLength   = Slim::Player::Playlist::count($master);
+    my $playingIndex = Slim::Player::Source::playingSongIndex($master);
+    return unless ($listLength - $playingIndex) == 2;   # exactly one track queued after the current one
+
+    # 'playlist delete' addresses the queue by plain index, not URL -
+    # no need to look up the upcoming track's own URL just to remove
+    # it. Since it's always the LAST entry in this plugin's queue
+    # (never more than current+1, see the comment above), the
+    # 'playlist add' below - which always appends - lands it right
+    # back in the same "next up" slot once the fresh pick is queued.
+    my $nextIndex = $playingIndex + 1;
+    $master->execute(['playlist', 'delete', $nextIndex]);
 
     # Exclude the currently playing track so the replacement can't
     # come back as an immediate repeat of it - same excludeUrls use as
@@ -325,6 +363,49 @@ sub replaceNext {
 
     $master->execute(['playlist', 'add', $picked->[0]{url}]);
     $log->info("RandomFlow::MixRunner: replaced the upcoming track with '" . $picked->[0]{title} . "' by '" . ($picked->[0]{artist} // '?') . "' for " . $master->name . ".");
+}
+
+# Album Mix mode's "Replace Track" (Henk, 29-09-2026): replaces the
+# WHOLE already-queued next album, not a single track. Only acts when
+# exactly mixNextAlbumTrackCount tracks are still queued after the
+# current one - a sanity check against drift (e.g. a manual queue
+# edit), same "checked explicitly rather than assumed" spirit as the
+# song-mode version above. See _queueNextAlbum() below for how that
+# pref gets set in the first place.
+sub _replaceNextAlbum {
+    my ($master, $criteria) = @_;
+
+    my $nextCount = $prefs->client($master)->get('mixNextAlbumTrackCount') || 0;
+    return unless $nextCount > 0;
+
+    my $listLength   = Slim::Player::Playlist::count($master);
+    my $playingIndex = Slim::Player::Source::playingSongIndex($master);
+    return unless ($listLength - $playingIndex - 1) == $nextCount;
+
+    my $curUrl     = Slim::Player::Playlist::url($master) || '';
+    my $curAlbumId = TrackSelector::albumIdForUrl($curUrl);
+    my $oldNextId  = $prefs->client($master)->get('mixNextAlbumId');
+    $criteria->{excludeAlbumIds} = [ grep { defined } ($curAlbumId, $oldNextId) ];
+
+    my $albums = TrackSelector::selectAlbums(%$criteria, count => 1);
+    if (!@$albums || !@{ $albums->[0]{tracks} }) {
+        $log->warn("RandomFlow::MixRunner: replaceNext (album mode) - no album found for " . $master->name . " - the upcoming album is now empty, will retry on the next track change.");
+        _warnNoTrack($master);
+        return;
+    }
+
+    # Same repeated-delete-at-the-same-index technique as elsewhere in
+    # this file - the queue shifts down by one each time, so this
+    # removes exactly the $nextCount tracks right after the playing one.
+    for (1 .. $nextCount) {
+        $master->execute(['playlist', 'delete', $playingIndex + 1]);
+    }
+
+    my $album = $albums->[0];
+    $master->execute(['playlist', 'add', $_->{url}]) for @{ $album->{tracks} };
+    $prefs->client($master)->set('mixNextAlbumId', $album->{albumId});
+    $prefs->client($master)->set('mixNextAlbumTrackCount', scalar @{ $album->{tracks} });
+    $log->info("RandomFlow::MixRunner: replaced the upcoming album with '" . $album->{albumTitle} . "' by '" . ($album->{albumArtist} // '?') . "' for " . $master->name . ".");
 }
 
 # Batch mode (Henk, 28-09-2026, modelled on SC-EXTMIP's Start Batch/
@@ -351,6 +432,14 @@ sub startBatch {
     if (!_hasFilter($criteria)) {
         $log->warn("RandomFlow::MixRunner: startBatch refused for " . $client->name . " - no filter chosen for this player (or any player it's synced with).");
         _warnNoFilter($client);
+        return 0;
+    }
+
+    # Batch mode is a Songs-only concept (Henk, 29-09-2026) - Start
+    # Batch/Top Up are hidden in the Live page's Album Mix mode, and
+    # refused here too in case a stale page still shows them.
+    if (($criteria->{mixMode} || 'songs') eq 'albums') {
+        $log->warn("RandomFlow::MixRunner: startBatch refused for " . $client->name . " - not available in Album Mix mode.");
         return 0;
     }
 
@@ -394,6 +483,11 @@ sub topUpQueue {
         return 0;
     }
 
+    if (($criteria->{mixMode} || 'songs') eq 'albums') {
+        $log->warn("RandomFlow::MixRunner: topUpQueue refused for " . $master->name . " - not available in Album Mix mode.");
+        return 0;
+    }
+
     my $curUrl = Slim::Player::Playlist::url($master) || '';
     $criteria->{excludeUrls} = [$curUrl];
 
@@ -432,6 +526,13 @@ sub queueSpecificTrack {
     my $master = $client->can('master') ? $client->master : $client;
     return unless $prefs->client($master)->get('mixRunning');
 
+    # "Afgewezen tracks" is a Songs-only panel (Henk, 29-09-2026) - not
+    # shown in Album Mix mode, and refused here too in case a stale
+    # page still calls it.
+    my $sourceId     = $prefs->client($master)->get('mixSourceClientId');
+    my $sourceClient = (defined $sourceId && Slim::Player::Client::getClient($sourceId)) || $master;
+    return if (_criteriaFor($sourceClient)->{mixMode} || 'songs') eq 'albums';
+
     my $listLength   = Slim::Player::Playlist::count($master);
     my $playingIndex = Slim::Player::Source::playingSongIndex($master);
     my $upcoming     = $listLength - $playingIndex - 1;
@@ -449,6 +550,72 @@ sub queueSpecificTrack {
 
     $master->execute(['playlist', 'add', $url]);
     $log->info("RandomFlow::MixRunner: queued a manually chosen track ('$url') as the upcoming track for " . $master->name . " (from the Afgewezen tracks panel).");
+}
+
+# Registered with Lyrion's own "Don't Stop The Music" plugin (see
+# Plugin.pm's postinitPlugin) as TWO selectable providers - "RandomFlow
+# Mix" (dstmHandler, this one) and "RandomFlow Batch" (dstmHandlerBatch
+# below), Henk's own request (30-09-2026) for a second, batchSize-sized
+# option alongside the normal 1-track-per-call one. Both share
+# _dstmPick(); only the Songs-mode pick count differs - Album mode is
+# always just "one album" either way, there's no batch-of-albums concept.
+sub dstmHandler {
+    my ($client, $cb) = @_;
+    return _dstmPick($client, $cb, 1);
+}
+
+sub dstmHandlerBatch {
+    my ($client, $cb) = @_;
+    return _dstmPick($client, $cb, undef);
+}
+
+# $songsCount: Songs-mode pick count - 1 for the normal provider (same
+# philosophy as Auto Mix's own _maybeQueueNext, and how older SugarCube
+# versions fed DSTM too: DSTM re-triggers on its own every time the
+# queue dips back under its threshold, so handing back a whole batch
+# every time would grow the queue without bound). undef for the Batch
+# provider, which falls back to the player's own Batch Size setting.
+sub _dstmPick {
+    my ($client, $cb, $songsCount) = @_;
+    return $cb->($client, []) unless $client;
+
+    my ($sourceClient, $criteria) = _resolveSource($client);
+    if (!_hasFilter($criteria)) {
+        $log->warn("RandomFlow::MixRunner: DSTM pick refused for " . $client->name . " - no filter chosen for this player (or any player it's synced with).");
+        return $cb->($client, []);
+    }
+
+    my $curUrl = Slim::Player::Playlist::url($client) || '';
+    my @urls;
+
+    if (($criteria->{mixMode} || 'songs') eq 'albums') {
+        my $curAlbumId = TrackSelector::albumIdForUrl($curUrl);
+        $criteria->{excludeAlbumIds} = defined $curAlbumId ? [$curAlbumId] : [];
+        my $albums = TrackSelector::selectAlbums(%$criteria, count => 1);
+        if (!@$albums || !@{ $albums->[0]{tracks} }) {
+            $log->warn("RandomFlow::MixRunner: DSTM pick - no album found for " . $client->name . ".");
+            return $cb->($client, []);
+        }
+        @urls = map { $_->{url} } @{ $albums->[0]{tracks} };
+        $log->info("RandomFlow::MixRunner: DSTM picked album '" . $albums->[0]{albumTitle} . "' (" . scalar(@urls) . " track(s)) for " . $client->name . ".");
+    } else {
+        $criteria->{excludeUrls} = [$curUrl];
+        my $count  = $songsCount || $criteria->{batchSize} || 20;
+        my $picked = TrackSelector::selectTracks(%$criteria, count => $count);
+        if (!@$picked) {
+            $log->warn("RandomFlow::MixRunner: DSTM pick - no track found for " . $client->name . ".");
+            return $cb->($client, []);
+        }
+        @urls = map { $_->{url} } @$picked;
+        $log->info("RandomFlow::MixRunner: DSTM picked " . scalar(@urls) . " track(s) for " . $client->name . ".");
+    }
+
+    # DSTM's own callback does "my ($client, $tracks) = @_;" then
+    # dereferences $tracks as an arrayref (confirmed against the real
+    # source, Henk 30-09-2026) - it wants ONE arrayref back, not a
+    # flat list of tracks.
+    my @tracks = grep { defined } map { Slim::Schema->objectForUrl($_) } @urls;
+    return $cb->($client, \@tracks);
 }
 
 # A filter now "counts" if EITHER its genre group or its artists list
@@ -558,19 +725,52 @@ sub _maybeQueueNext {
         return;
     }
 
-    $criteria->{excludeUrls} = [$url];
+    my $queued;
+    if (($criteria->{mixMode} || 'songs') eq 'albums') {
+        $queued = _queueNextAlbum($client, $criteria, $url);
+    } else {
+        $criteria->{excludeUrls} = [$url];
 
-    my $picked = TrackSelector::selectTracks(%$criteria, count => 1);
-    if (!@$picked) {
-        $log->warn("RandomFlow::MixRunner: maybeQueueNext - no track found for " . $client->name . " (see the log above this line for the actual reason). Mix keeps running - will retry on the next track change.");
-        _warnNoTrack($client);
-        return;
+        my $picked = TrackSelector::selectTracks(%$criteria, count => 1);
+        if (!@$picked) {
+            $log->warn("RandomFlow::MixRunner: maybeQueueNext - no track found for " . $client->name . " (see the log above this line for the actual reason). Mix keeps running - will retry on the next track change.");
+            _warnNoTrack($client);
+        } else {
+            $client->execute(['playlist', 'add', $picked->[0]{url}]);
+            $log->info("RandomFlow::MixRunner: queued '" . $picked->[0]{title} . "' by '" . ($picked->[0]{artist} // '?') . "' for " . $client->name . ".");
+            $queued = 1;
+        }
     }
 
-    $client->execute(['playlist', 'add', $picked->[0]{url}]);
-    $log->info("RandomFlow::MixRunner: queued '" . $picked->[0]{title} . "' by '" . ($picked->[0]{artist} // '?') . "' for " . $client->name . ".");
+    _trimHistory($client, _historyLimit()) if $queued;
+}
 
-    _trimHistory($client, _historyLimit());
+# Album Mix mode's top-up (Henk, 29-09-2026): reuses the exact same
+# "exactly 1 track left" trigger _maybeQueueNext already uses for song
+# mode - same "almost done" moment, just queuing a whole album instead
+# of one track. Excludes the currently playing album so it can't repeat
+# immediately. Remembers how many tracks got appended
+# (mixNextAlbumTrackCount/mixNextAlbumId) so replaceNext() above knows
+# exactly how much of the tail to remove/replace.
+sub _queueNextAlbum {
+    my ($client, $criteria, $curUrl) = @_;
+
+    my $curAlbumId = TrackSelector::albumIdForUrl($curUrl);
+    $criteria->{excludeAlbumIds} = defined $curAlbumId ? [$curAlbumId] : [];
+
+    my $albums = TrackSelector::selectAlbums(%$criteria, count => 1);
+    if (!@$albums || !@{ $albums->[0]{tracks} }) {
+        $log->warn("RandomFlow::MixRunner: maybeQueueNext (album mode) - no album found for " . $client->name . ". Mix keeps running - will retry on the next track change.");
+        _warnNoTrack($client);
+        return 0;
+    }
+
+    my $album = $albums->[0];
+    $client->execute(['playlist', 'add', $_->{url}]) for @{ $album->{tracks} };
+    $prefs->client($client)->set('mixNextAlbumId', $album->{albumId});
+    $prefs->client($client)->set('mixNextAlbumTrackCount', scalar @{ $album->{tracks} });
+    $log->info("RandomFlow::MixRunner: queued album '" . $album->{albumTitle} . "' by '" . ($album->{albumArtist} // '?') . "' (" . scalar(@{ $album->{tracks} }) . " track(s)) for " . $client->name . ".");
+    return 1;
 }
 
 # Resolves the global "Play history" setting (Settings/Basic.pm) to an
@@ -662,6 +862,7 @@ sub _criteriaFor {
     my $genreBlock     = $clientPrefs->get('genreBlock') || [];
 
     return {
+        mixMode              => $clientPrefs->get('mixMode') || 'songs',
         genreGroup           => resolveFilterGenres($filters, $activeFilterId, $genreBlock),
         filterArtists        => resolveFilterArtists($filters, $activeFilterId),
         yearRanges           => resolveFilterYears($filters, $activeFilterId),

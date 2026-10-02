@@ -771,7 +771,7 @@
 				<span class="tstInfoWrap">
 					<span class="tstInfoIcon" id="tstAutoMixInfoIcon">&#9432;</span>
 					<div class="tstInfoPopover">
-						Auto Mix and Lyrion's own Don't Stop The Music (DSTM) clash if both try to queue tracks for this player at once. Enabling Auto Mix switches DSTM off for this player; disabling Auto Mix switches DSTM back on to whatever it was set to before.
+						Auto Mix and Lyrion's own Don't Stop The Music (DSTM) can clash if both try to queue tracks for this player at once. This is not handled automatically - if you use DSTM for this player, pick either Auto Mix or a DSTM provider, not both.
 						<button type="button" onclick="this.parentElement.style.display='none'">Close</button>
 						<div style="clear:both;"></div>
 					</div>
@@ -1087,6 +1087,13 @@
 			var PLAYER_ID = "[% tstPlayerId | html %]";
 			var webroot   = "[% webroot %]";
 			var cometdUrl = webroot + "cometd";
+
+			// Album Mix mode (Henk, 29-09-2026) - set once from the initial
+			// mixsettings fetch (tstMixSettingsRender below), not expected
+			// to change without a page reload. 'songs' (default) keeps
+			// every existing behaviour; 'albums' hides the batch buttons
+			// and switches Replace Track's own logic (see renderNowPlaying).
+			var RF_MIX_MODE = 'songs';
 
 			var clientId        = null;
 			var responseChannel = null;
@@ -1768,6 +1775,25 @@
 			}
 
 			function tstMixSettingsRender(data) {
+				// Album Mix mode (Henk, 29-09-2026): Start Batch/Top Up are
+				// a Songs-only concept (MixRunner.pm refuses them in album
+				// mode too, as a backend safety net) - hidden here once,
+				// same "set once at load" spirit as RF_MIX_MODE itself.
+				// Replace Track's label changes to match what it now does;
+				// its actual show/hide logic lives in renderNowPlaying.
+				// Same !important-override note as renderNowPlaying below:
+				// .tstIconBtn forces display:inline-flex !important, so a
+				// plain style.display='none' here is silently ignored -
+				// setProperty(..., 'important') is required.
+				RF_MIX_MODE = data.mixMode || 'songs';
+				if (RF_MIX_MODE === 'albums') {
+					document.getElementById('tstStartBatchBtn').style.setProperty('display', 'none', 'important');
+					document.getElementById('tstTopUpBtn').style.setProperty('display', 'none', 'important');
+					var replaceBtn = document.getElementById('tstReplaceNextBtn');
+					replaceBtn.setAttribute('aria-label', 'Replace Album');
+					replaceBtn.setAttribute('title', 'Replace Album');
+				}
+
 				document.getElementById('tstAutoMixSelect').value = data.mixRunning ? '1' : '0';
 				// Same #3fb950 (on) / #f04747 (off) SC-EXTMIP itself uses
 				// for its own sc_lamp, computed there server-side (TT) -
@@ -2172,9 +2198,6 @@
 				// and SC-EXTMIP's sc_can_act (CheckPosition <= 2) - not
 				// tied to the Auto Mix toggle, which can stay Enabled while
 				// something else (an album, a batch) is actually playing.
-				var tracksAhead = (data.playlist_tracks != null && data.playlist_cur_index != null)
-					? (parseInt(data.playlist_tracks, 10) - parseInt(data.playlist_cur_index, 10) - 1)
-					: null;
 				// Henk, 28-09-2026: plain style.display='none' stopped
 				// working once this toggle moved from the old wrapper div
 				// onto the button itself (batch-mode layout cleanup) -
@@ -2182,7 +2205,30 @@
 				// beats a non-important inline style. setProperty(...,
 				// 'important') is required to actually override it.
 				var replaceBtn = document.getElementById('tstReplaceNextBtn');
-				if (tracksAhead === 1) {
+				var showReplace;
+				if (RF_MIX_MODE === 'albums') {
+					// Henk, 29-09-2026: in Album Mix mode this button
+					// replaces the whole upcoming ALBUM (MixRunner::
+					// _replaceNextAlbum, guarded there by the precise
+					// numeric album id), so it only makes sense once the
+					// current album's last track is playing and a
+					// different album has already been queued behind it.
+					// Comparing album TITLE here (not id - the push
+					// doesn't carry one) is a display-only heuristic, good
+					// enough for a show/hide decision; the actual replace
+					// is guarded precisely server-side regardless.
+					var curAlbum  = pickAlbum(data);
+					var nextAlbum = pickNextAlbum(data);
+					showReplace = !!nextAlbum && nextAlbum !== curAlbum;
+				} else {
+					// Same structural check as MixRunner::replaceNext's own
+					// guard - exactly one track queued after the current one.
+					var tracksAhead = (data.playlist_tracks != null && data.playlist_cur_index != null)
+						? (parseInt(data.playlist_tracks, 10) - parseInt(data.playlist_cur_index, 10) - 1)
+						: null;
+					showReplace = tracksAhead === 1;
+				}
+				if (showReplace) {
 					replaceBtn.style.removeProperty('display');
 				} else {
 					replaceBtn.style.setProperty('display', 'none', 'important');
@@ -2314,6 +2360,11 @@
 						logLine('status push received');
 						document.getElementById('tstJson').textContent = JSON.stringify(msg.data, null, 2);
 						renderNowPlaying(msg.data || {});
+						// Free bonus refresh on top of the 5s interval below -
+						// doesn't hurt, and makes Mix Settings feel instant on
+						// the (common) occasions a real status push happens to
+						// land around the same time as an external change.
+						tstMixSettingsFetch();
 					} else if (msg.channel === '/meta/connect' && msg.successful === false) {
 						logLine('connect not successful: ' + (msg.error || 'unknown reason') + ' - re-handshaking');
 						reconnect();
@@ -2764,6 +2815,14 @@
 
 			handshake();
 			tstMixSettingsFetch();
+			// A plain pref change (e.g. Auto Mix toggled off from
+			// SqueezeClient's own Random Flow settings menu) doesn't touch
+			// playlist/power/etc., so it never triggers the 'status' push
+			// above - piggybacking on that alone left Auto Mix stale for a
+			// full 30s heartbeat or longer. mixsettings is a small, cheap
+			// per-player fetch, so a dedicated 5s refresh keeps it correct
+			// without needing a real server-side push for it.
+			setInterval(tstMixSettingsFetch, 5000);
 			// Restores #tstMixSettings' remembered open/closed state (see
 			// tstApplyDetailsState's own comment for why this call has to
 			// live here, inside the closure, rather than as a standalone

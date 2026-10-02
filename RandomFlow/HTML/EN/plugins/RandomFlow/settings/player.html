@@ -6,6 +6,16 @@
 	[%# live here is gone - fully superseded by the Live page's own Auto   %]
 	[%# Mix toggle and Start New Mix button.                               %]
 
+	[%# Henk, 29-09-2026: Mix Mode - Songs (unchanged) or Albums (Start    %]
+	[%# Mix/top-up queue whole albums instead of single tracks). Placed    %]
+	[%# first since it changes how several of the settings below behave.  %]
+	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_MIXMODE" desc="PLUGIN_RANDOMFLOW_MIXMODE_DESC" %]
+		<select class="stdedit" name="pref_mixMode" id="mixMode">
+			<option value="songs"[% IF prefs.pref_mixMode == "songs" %] selected[% END %]>[% "PLUGIN_RANDOMFLOW_MIXMODE_SONGS" | string %]</option>
+			<option value="albums"[% IF prefs.pref_mixMode == "albums" %] selected[% END %]>[% "PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS" | string %]</option>
+		</select>
+	[% END %]
+
 	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_POOLSIZE" desc="PLUGIN_RANDOMFLOW_POOLSIZE_DESC" %]
 		<input type="text" class="stdedit sliderInput_10_2000" name="pref_poolSize" id="poolSize" value="[% prefs.pref_poolSize | html %]" size="6">
 	[% END %]

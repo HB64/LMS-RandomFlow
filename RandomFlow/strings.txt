@@ -42,6 +42,22 @@ PLUGIN_RANDOMFLOW_WOBBLE_DESC
 	EN	How much randomness is mixed into the pick, always from within your genre selection above - it never lets a track from outside those genres through. 0 (Tight) always respects your preferred/less-preferred artist weighting above fully; 100 (Loose) ignores it and picks purely at random within the genre selection. This only has a visible effect when a preferred or less-preferred artist is configured above - with nothing weighted, every track already has equal odds and Wobble has nothing to change.
 	NL	Hoeveel willekeur er wordt gemengd door de keuze, altijd binnen je genreselectie hierboven - een track buiten die genres komt er nooit doorheen. 0 (Tight) houdt altijd volledig rekening met je voorkeurs-/minder-voorkeursartiest-weging hierboven; 100 (Loose) negeert dat en kiest puur willekeurig binnen de genreselectie. Dit heeft alleen zichtbaar effect als er hierboven een voorkeurs- of minder-voorkeursartiest is ingesteld - is er niets gewogen, dan heeft elke track al gelijke kans en verandert Wobble niets.
 
+PLUGIN_RANDOMFLOW_MIXMODE
+	EN	Mix Mode
+	NL	Mixmodus
+
+PLUGIN_RANDOMFLOW_MIXMODE_DESC
+	EN	Songs picks individual weighted tracks, same as before. Albums picks whole albums (same genre/artist criteria, applied per album) and queues every track on the album in order.
+	NL	Nummers kiest losse, gewogen tracks, zoals voorheen. Albums kiest hele albums (dezelfde genre-/artiestcriteria, toegepast per album) en zet alle tracks van dat album in volgorde in de wachtrij.
+
+PLUGIN_RANDOMFLOW_MIXMODE_SONGS
+	EN	Songs
+	NL	Nummers
+
+PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS
+	EN	Albums
+	NL	Albums
+
 PLUGIN_RANDOMFLOW_POOLSIZE
 	EN	Ask size
 	NL	Ask size
@@ -245,3 +261,19 @@ PLUGIN_RANDOMFLOW_QUICKPLAY
 PLUGIN_RANDOMFLOW_LIVE
 	EN	RandomFlow
 	NL	RandomFlow
+
+PLUGIN_RANDOMFLOW_DSTM
+	EN	RandomFlow Mix
+	NL	RandomFlow Mix
+
+PLUGIN_RANDOMFLOW_DSTM_BATCH
+	EN	RandomFlow Batch
+	NL	RandomFlow Batch
+
+PLUGIN_RANDOMFLOW_JIVE_AUTOMIX
+	EN	Auto Mix
+	NL	Auto Mix
+
+PLUGIN_RANDOMFLOW_JIVE_NOFILTER
+	EN	No filter
+	NL	Geen filter

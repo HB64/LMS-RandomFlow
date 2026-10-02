@@ -197,6 +197,13 @@ package TrackSelector;
 #     agreed-on fields above; RecipeFilterEngine.pm's more general
 #     parser can be wired in on top of this later if needed.
 #
+# ALBUM MODE (Henk, 29-09-2026): selectAlbums() below is the album-mix
+# counterpart to selectTracks() - same hard constraints/weighting, but
+# candidate tracks are collapsed to distinct albums (one surviving track
+# is enough, no minimum-match-count) and weighted by the album's own
+# contributor instead of a track's. Once an album is picked, ALL of its
+# tracks come back, unfiltered, in disc/track order.
+#
 
 use strict;
 use warnings;
@@ -319,33 +326,11 @@ sub selectTracks {
     my $apcAvailable = _apcAvailable($dbh);
     my $tpAvailable  = _tracksPersistentAvailable($dbh);
 
-    # Merge any recently-played artists (artistCooldownTracks) into the
-    # hard artistBlock list. This runs BEFORE any weighting, so a
-    # "preferred" artist who was just played is still excluded -
-    # preference should raise likelihood, it must never force a repeat
-    # sooner than the cooldown allows.
-    if (defined $criteria{artistCooldownTracks} && $criteria{artistCooldownTracks} > 0) {
-        my $recent = _recentlyPlayedArtists($dbh, $criteria{artistCooldownTracks}, $playCountProvider, $apcAvailable, $tpAvailable);
-        if (@$recent) {
-            my @artistBlock = @{ $criteria{artistBlock} || [] };
-            my %seen = map { lc($_) => 1 } @artistBlock;
-            push @artistBlock, grep { !$seen{lc($_)}++ } @$recent;
-            $criteria{artistBlock} = \@artistBlock;
-        }
-    }
-
-    # Same idea, one step down: recently-played ALBUMS (albumCooldownTracks)
-    # merged into a hard albumBlock list, independent of the artist cooldown
-    # above - see the design notes at the top of this file (24-09-2026).
-    if (defined $criteria{albumCooldownTracks} && $criteria{albumCooldownTracks} > 0) {
-        my $recentAlbums = _recentlyPlayedAlbums($dbh, $criteria{albumCooldownTracks}, $playCountProvider, $apcAvailable, $tpAvailable);
-        if (@$recentAlbums) {
-            my @albumBlock = @{ $criteria{albumBlock} || [] };
-            my %seen = map { $_ => 1 } @albumBlock;
-            push @albumBlock, grep { !$seen{$_}++ } @$recentAlbums;
-            $criteria{albumBlock} = \@albumBlock;
-        }
-    }
+    # Merge recently-played artists/albums (cooldowns) into the hard
+    # artistBlock/albumBlock lists - BEFORE any weighting, so a
+    # "preferred" artist who was just played is still excluded. Shared
+    # with selectAlbums() below - see _mergeCooldownBlocks().
+    _mergeCooldownBlocks(\%criteria, $dbh, $playCountProvider, $apcAvailable, $tpAvailable);
 
     my $poolSize = defined $criteria{poolSize} ? $criteria{poolSize} : DEFAULT_POOL_SIZE;
 
@@ -375,6 +360,84 @@ sub selectTracks {
         $criteria{lessPreferredWeight}  || 1,
         $criteria{wobble} || 0,
     );
+}
+
+# selectAlbums(%criteria) -> arrayref of
+#   { albumId, albumTitle, albumArtist, albumYear,
+#     tracks => [ { url, title, artist, albumId }, ... ] }
+#
+# Album Mix mode (Henk, 29-09-2026): the album-mix counterpart to
+# selectTracks() above. Same %criteria and hard constraints, but
+# candidate TRACKS are collapsed to distinct ALBUMS (one surviving
+# track is enough to make the album a candidate - no minimum-match-
+# count, Henk confirmed). Weighting (preferredArtists/wobble) uses the
+# album's own contributor (Lyrion's "album artist"), not whichever
+# track happened to survive the filter. Once an album is picked, ALL of
+# its tracks come back, unfiltered, in disc/track order - the point is
+# the real album, not a filtered subset of it.
+#
+# One extra criterion beyond selectTracks():
+#   excludeAlbumIds => arrayref of album ids to hard-exclude (e.g. the
+#                       currently playing album, when picking a
+#                       replacement for the upcoming one)
+sub selectAlbums {
+    my (%criteria) = @_;
+
+    my $dbh = Slim::Schema->dbh;
+    if (!$dbh) {
+        $log->error("TrackSelector: could not get Slim::Schema->dbh");
+        return [];
+    }
+
+    _attachPersistDb($dbh);
+
+    my $playCountProvider = $criteria{playCountProvider} || 'both';
+    my $apcAvailable = _apcAvailable($dbh);
+    my $tpAvailable  = _tracksPersistentAvailable($dbh);
+
+    _mergeCooldownBlocks(\%criteria, $dbh, $playCountProvider, $apcAvailable, $tpAvailable);
+
+    my $poolSize = defined $criteria{poolSize} ? $criteria{poolSize} : DEFAULT_POOL_SIZE;
+
+    my ($sql, @bindValues) = _buildAlbumPoolQuery(%criteria, poolSize => $poolSize, apcAvailable => $apcAvailable, tpAvailable => $tpAvailable);
+    my $pool = eval { $dbh->selectall_arrayref($sql, { Slice => {} }, @bindValues) };
+    if ($@) {
+        $log->error("TrackSelector: album query failed: $@");
+        return [];
+    }
+
+    if (!@$pool) {
+        $log->warn("TrackSelector: no albums survived the hard constraints - pool is empty.");
+        return [];
+    }
+
+    my $count = $criteria{count} || 1;
+
+    # _weightedPick() reads $row->{artist} - the album pool query already
+    # aliases the album's own contributor to that same key, so this is
+    # reused unchanged from selectTracks() above.
+    my $picked = _weightedPick(
+        $pool,
+        $count,
+        $criteria{preferredArtists}     || [],
+        $criteria{preferredWeight}      || 1,
+        $criteria{lessPreferredArtists} || [],
+        $criteria{lessPreferredWeight}  || 1,
+        $criteria{wobble} || 0,
+    );
+
+    my @albums;
+    for my $row (@$picked) {
+        push @albums, {
+            albumId     => $row->{albumId},
+            albumTitle  => $row->{albumTitle},
+            albumArtist => $row->{artist},
+            albumYear   => $row->{albumYear},
+            tracks      => _albumTracks($dbh, $row->{albumId}),
+        };
+    }
+
+    return \@albums;
 }
 
 # findRejectedTracks(%criteria) -> { tracks => arrayref, totalCount => N }
@@ -710,6 +773,25 @@ sub lastPlayedForTracks {
     return \%result;
 }
 
+# albumIdForUrl($url) -> numeric album id, or undef
+#
+# Album Mix mode (Henk, 29-09-2026): resolves which album a given
+# queued/playing track URL belongs to - used by MixRunner to exclude
+# the currently playing album when picking or replacing the next one.
+sub albumIdForUrl {
+    my ($url) = @_;
+    return undef unless defined $url && length $url;
+
+    my $dbh = Slim::Schema->dbh;
+    return undef unless $dbh;
+
+    my $albumId = eval {
+        $dbh->selectrow_array('SELECT album FROM tracks WHERE url = ?', undef, $url);
+    };
+    return undef if $@;
+    return $albumId;
+}
+
 sub _attachPersistDb {
     my ($dbh) = @_;
 
@@ -979,6 +1061,153 @@ sub _yearWhereClause {
 
     return ('', ()) unless @parts;
     return ('(' . join(' OR ', @parts) . ')', @bind);
+}
+
+# Merges recently-played artists/albums (artistCooldownTracks/
+# albumCooldownTracks, if set) into $criteria->{artistBlock}/
+# {albumBlock} in place. Shared by selectTracks() and selectAlbums() so
+# both fully hard-exclude anything in cooldown before any weighting.
+sub _mergeCooldownBlocks {
+    my ($criteria, $dbh, $playCountProvider, $apcAvailable, $tpAvailable) = @_;
+
+    if (defined $criteria->{artistCooldownTracks} && $criteria->{artistCooldownTracks} > 0) {
+        my $recent = _recentlyPlayedArtists($dbh, $criteria->{artistCooldownTracks}, $playCountProvider, $apcAvailable, $tpAvailable);
+        if (@$recent) {
+            my @artistBlock = @{ $criteria->{artistBlock} || [] };
+            my %seen = map { lc($_) => 1 } @artistBlock;
+            push @artistBlock, grep { !$seen{lc($_)}++ } @$recent;
+            $criteria->{artistBlock} = \@artistBlock;
+        }
+    }
+
+    if (defined $criteria->{albumCooldownTracks} && $criteria->{albumCooldownTracks} > 0) {
+        my $recentAlbums = _recentlyPlayedAlbums($dbh, $criteria->{albumCooldownTracks}, $playCountProvider, $apcAvailable, $tpAvailable);
+        if (@$recentAlbums) {
+            my @albumBlock = @{ $criteria->{albumBlock} || [] };
+            my %seen = map { $_ => 1 } @albumBlock;
+            push @albumBlock, grep { !$seen{$_}++ } @$recentAlbums;
+            $criteria->{albumBlock} = \@albumBlock;
+        }
+    }
+}
+
+# Album-pool counterpart to _buildPoolQuery() below - same hard-filter
+# WHERE clause (candidate tracks, genre/artistBlock/cooldowns/etc.), but
+# collapsed to one row per distinct album (GROUP BY t.album) and
+# weighted on the album's own contributor (al.contributor) instead of
+# each surviving track's primary_artist - see selectAlbums()'s own
+# comment for why.
+sub _buildAlbumPoolQuery {
+    my (%criteria) = @_;
+
+    my $playCountProvider = $criteria{playCountProvider} || 'both';
+    my $apcAvailable      = $criteria{apcAvailable};
+    my $tpAvailable       = $criteria{tpAvailable};
+    my $playCountExpr     = _playCountExpr($playCountProvider, $apcAvailable, $tpAvailable);
+    my $limit             = defined $criteria{poolSize} ? $criteria{poolSize} : DEFAULT_POOL_SIZE;
+
+    my $apcJoin = $apcAvailable ? 'LEFT JOIN p.alternativeplaycount apc ON apc.urlmd5 = t.urlmd5' : '';
+    my $tpJoin  = $tpAvailable  ? 'LEFT JOIN p.tracks_persistent tp ON tp.urlmd5 = t.urlmd5'       : '';
+
+    my $ratingExpr = $tpAvailable
+        ? '(CASE WHEN tp.rating > 5 THEN ROUND(tp.rating / 20.0) ELSE tp.rating END)'
+        : 'NULL';
+
+    my @where = ('t.audio = 1', 't.album IS NOT NULL');
+    my @bind;
+
+    my $genreGroup    = $criteria{genreGroup}    || [];
+    my $filterArtists = $criteria{filterArtists} || [];
+    my (@orParts, @orBind);
+    if (@$genreGroup) {
+        push @orParts, 'g.name IN (' . join(',', ('?') x @$genreGroup) . ')';
+        push @orBind, @$genreGroup;
+    }
+    if (@$filterArtists) {
+        push @orParts, '(' . join(' OR ', ('c.name LIKE ? COLLATE NOCASE') x @$filterArtists) . ')';
+        push @orBind, map { '%' . $_ . '%' } @$filterArtists;
+    }
+    if (@orParts) {
+        push @where, '(' . join(' OR ', @orParts) . ')';
+        push @bind, @orBind;
+    }
+
+    my ($yearWhere, @yearBind) = _yearWhereClause($criteria{yearRanges});
+    if ($yearWhere) {
+        push @where, $yearWhere;
+        push @bind, @yearBind;
+    }
+
+    my $artistBlock = $criteria{artistBlock} || [];
+    if (@$artistBlock) {
+        push @where, '(c.name IS NULL OR c.name NOT IN (' . join(',', ('?') x @$artistBlock) . '))';
+        push @bind, @$artistBlock;
+    }
+
+    my $albumBlock = $criteria{albumBlock} || [];
+    if (@$albumBlock) {
+        push @where, 't.album NOT IN (' . join(',', ('?') x @$albumBlock) . ')';
+        push @bind, @$albumBlock;
+    }
+
+    if (defined $criteria{maxPlaycount}) {
+        push @where, "($playCountExpr IS NULL OR $playCountExpr <= ?)";
+        push @bind, $criteria{maxPlaycount};
+    }
+
+    my $excludeRatings = $criteria{excludeRatings} || [];
+    if (@$excludeRatings && $tpAvailable) {
+        push @where, "(tp.rating IS NULL OR $ratingExpr NOT IN (" . join(',', ('?') x @$excludeRatings) . '))';
+        push @bind, @$excludeRatings;
+    }
+
+    my $excludeAlbumIds = $criteria{excludeAlbumIds} || [];
+    if (@$excludeAlbumIds) {
+        push @where, 't.album NOT IN (' . join(',', ('?') x @$excludeAlbumIds) . ')';
+        push @bind, @$excludeAlbumIds;
+    }
+
+    my $sql = qq{
+        SELECT t.album AS albumId, al.title AS albumTitle, al.year AS albumYear,
+               ac.name AS artist
+        FROM tracks t
+        LEFT JOIN genre_track gt ON gt.track = t.id
+        LEFT JOIN genres g ON g.id = gt.genre
+        LEFT JOIN contributors c ON c.id = t.primary_artist
+        JOIN albums al ON al.id = t.album
+        LEFT JOIN contributors ac ON ac.id = al.contributor
+        $apcJoin
+        $tpJoin
+        WHERE } . join("\n          AND ", @where) . qq{
+        GROUP BY t.album
+        ORDER BY RANDOM()
+        LIMIT $limit
+    };
+
+    return ($sql, @bind);
+}
+
+# All audio tracks of one album, in play order - used by selectAlbums()
+# once an album has been picked. Deliberately unfiltered (no genre/
+# artistBlock/etc. re-check per track) - the album itself was already
+# the filtered/weighted pick, this just returns it whole.
+sub _albumTracks {
+    my ($dbh, $albumId) = @_;
+
+    my $rows = eval {
+        $dbh->selectall_arrayref(qq{
+            SELECT t.url, t.title, c.name AS artist, t.album AS albumId
+            FROM tracks t
+            LEFT JOIN contributors c ON c.id = t.primary_artist
+            WHERE t.album = ? AND t.audio = 1
+            ORDER BY t.disc, t.tracknum
+        }, { Slice => {} }, $albumId);
+    };
+    if ($@) {
+        $log->error("TrackSelector: could not fetch tracks for album $albumId: $@");
+        return [];
+    }
+    return $rows || [];
 }
 
 sub _buildPoolQuery {

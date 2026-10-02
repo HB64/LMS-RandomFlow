@@ -51,6 +51,7 @@ my $prefs = preferences('plugin.randomflow');
 # any more - it's resolved at mix time from activeFilterId + genreBlock,
 # see the file header above.)
 my %DEFAULTS = (
+    mixMode              => 'songs',   # Henk, 29-09-2026: 'songs' (default, unchanged behaviour) or 'albums'
     activeFilterId       => '',
     genreBlock           => [],
     artistBlock          => [],
@@ -82,6 +83,7 @@ my %DEFAULTS = (
 
 # Handed to the base class's own handler() - plain scalar values only.
 my @SCALAR_PREFS = qw(
+    mixMode
     activeFilterId
     maxPlaycount
     preferredWeight

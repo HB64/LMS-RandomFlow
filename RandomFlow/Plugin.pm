@@ -89,7 +89,6 @@ use Plugins::RandomFlow::MixRunner;
 use Plugins::RandomFlow::ProtocolHandler;
 use Plugins::RandomFlow::Web;
 
-use Scalar::Util qw(blessed);
 use Slim::Schema;
 use Slim::Utils::Alarm;
 use Slim::Utils::Log;
@@ -160,6 +159,22 @@ sub initPlugin {
     # exactly the same, since that watcher reacts to the pref changing
     # however it changed.
     Slim::Control::Request::addDispatch(['randomflow', 'setautomix', '_value'], [1, 0, 0, \&_handleSetAutoMix]);
+    # Settings entry for Jive clients (e.g. Squeezeclient); Auto Mix reuses setautomix above.
+    Slim::Control::Jive::registerPluginMenu([{
+        text    => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_GLOBAL_SETTINGS'),
+        id      => 'pluginRandomFlowSettings',
+        weight  => 20,
+        actions => { go => { player => 0, cmd => ['randomflow', 'menu'] } },
+        window  => { titleStyle => 'settings' },
+    }], 'settings');
+    Slim::Control::Request::addDispatch(['randomflow', 'menu'], [0, 0, 1, \&_handleJiveMenu]);
+    # "Start mix" entry in the track info menu (same mechanism as SugarCube's "mix from here")
+    Slim::Menu::TrackInfo->registerInfoProvider(
+        randomflow => (
+            before => 'playitem',
+            func   => \&_trackInfoStartMix,
+        )
+    );
     # replacenext - Henk, 25-09-2026: RandomFlow's own equivalent of
     # SC-EXTMIP's "Replace Track" ('sugarcube replacenext'/scReplaceNext) -
     # same JSON-RPC shape, so the Live page's "Replace Track" icon button
@@ -244,100 +259,18 @@ sub initPlugin {
     # handler() uses for this exact pref).
     Slim::Control::Request::addDispatch(['randomflow', 'mixsettings'], [1, 0, 0, \&_handleMixSettings]);
     Slim::Control::Request::addDispatch(['randomflow', 'setfilter', '_filterid'], [1, 0, 0, \&_handleSetFilter]);
+    Slim::Control::Request::addDispatch(['randomflow', 'setmixmode', '_value'], [1, 0, 0, \&_handleSetMixMode]);
     Slim::Control::Request::addDispatch(['randomflow', 'setwobble', '_value'], [1, 0, 0, \&_handleSetWobble]);
+    Slim::Control::Request::addDispatch(['randomflow', 'setbatchsize', '_value'], [1, 0, 0, \&_handleSetBatchSize]);
     Slim::Control::Request::addDispatch(['randomflow', 'setmaxplaycount', '_value'], [1, 0, 0, \&_handleSetMaxPlaycount]);
     Slim::Control::Request::addDispatch(['randomflow', 'setartistcooldown', '_value'], [1, 0, 0, \&_handleSetArtistCooldown]);
     Slim::Control::Request::addDispatch(['randomflow', 'setalbumcooldown', '_value'], [1, 0, 0, \&_handleSetAlbumCooldown]);
 
-    # Auto Mix <-> DSTM clash - Henk, 26-09-2026: while comparing this
-    # against how SC-EXTMIP's own Chain Mode/DSTM watcher behaves (see
-    # that plugin's Plugin.pm, "DSTM SWITCHED OFF WHEN CHAIN MODE STARTS,
-    # BACK ON WHEN IT STOPS"), Henk reproduced the exact same clash here
-    # live: with nothing wiring mixRunning to DSTM at all, manually
-    # picking a DSTM provider while Auto Mix is running lets DSTM inject
-    # its own picks into the queue right alongside this plugin's own -
-    # two pickers fighting over the same player, silently. Modelled
-    # directly on SC-EXTMIP's own fix (same fork family, same problem,
-    # already proven working there), starting the same deliberately
-    # ONE-WAY way Henk had SC-EXTMIP do it first: Auto Mix driving DSTM,
-    # not (yet) the other way around - see the end of this comment for
-    # what that still leaves open.
-    #
-    # mixRunning is already the exact per-(sync-master)-client pref that
-    # backs the existing "Mix starten"/"Mix stoppen" buttons - no new
-    # pref needed for the toggle itself, only this watcher, plus (still
-    # to come, not built in this pass) a relabeled "Auto Mix: Enabled/
-    # Disabled" control on the Live/Player pages with an info button
-    # explaining this behaviour, matching how SC-EXTMIP presents its own
-    # Chain Mode dropdown.
-    #
-    # - Auto Mix switched ON: read DSTM's current 'provider' pref for
-    #   this player's sync-group MASTER (DSTM always keys 'provider' off
-    #   the master - confirmed against Slim::Plugin::DontStopTheMusic,
-    #   never an individual sync slave, which is also why MixRunner.pm's
-    #   own startMix/stopMix already store mixRunning on the master, not
-    #   whichever specific player was actually asked to start/stop), save
-    #   it to mixDstmSavedProvider (nothing saved if DSTM was already off
-    #   - '0' is DSTM's own stored "off" value, so there is then nothing
-    #   worth remembering), then force DSTM off by executing playerpref
-    #   plugin.dontstopthemusic:provider 0 - the same command DSTM's own
-    #   settings menu fires for "Disabled", so this is indistinguishable
-    #   from a manual choice.
-    # - Auto Mix switched OFF: restore whatever was saved (nothing done
-    #   if nothing was saved), then clear the saved value so a later
-    #   Auto-Mix-off with nothing new saved in between does not restore
-    #   the same provider twice.
-    #
-    # STILL ONE-WAY WITH RESPECT TO DSTM'S OWN TOGGLE, same as SC-EXTMIP
-    # today: manually picking a DSTM provider while Auto Mix is already
-    # running does NOT (yet) switch Auto Mix off in return - that is the
-    # exact gap Henk's own test just reproduced. Planned as a follow-up:
-    # a second watcher on DSTM's own 'provider' pref, needing its own
-    # guard against the two watchers re-triggering each other (this
-    # watcher's own writes to DSTM's provider pref would otherwise look
-    # like a fresh manual change to that second one). Also planned,
-    # separately: registering Auto Mix itself as a selectable DSTM
-    # provider. Neither is built here yet - see the project notes.
-    my $dstmprefs = preferences('plugin.dontstopthemusic');
-
-    $prefs->setChange(sub {
-        my ($pref, $new, $client) = @_;
-        # Henk, 26-09-2026: wrapped in eval so a real die() in here (this
-        # fires SYNCHRONOUSLY from inside MixRunner::setAutoMix's own
-        # $prefs->...->set('mixRunning', ...) call) gets logged instead of
-        # silently killing the request. FIXED same day: the first version
-        # of this used "eval { ...; 1; } or do { log \$@ }", which is
-        # wrong - a bare "return" inside an eval BLOCK exits the EVAL, not
-        # the enclosing sub, so every ordinary early exit below (DSTM
-        # already off, nothing saved to restore) made the eval's own
-        # return value falsy and tripped the "or do" - logging a fake
-        # "CRASHED" for completely normal, expected behaviour, with $@
-        # empty because nothing had actually died. Fixed by only checking
-        # $@ itself afterwards (which stays empty unless something really
-        # dies), never the eval's return value.
-        eval {
-            return unless blessed($client);
-
-            my $dstmClient = $client->master;
-
-            if ($new) {
-                my $dstm = $dstmprefs->client($dstmClient)->get('provider');
-                return if !defined $dstm || $dstm eq '0';
-                $prefs->client($client)->set('mixDstmSavedProvider', $dstm);
-                $log->info('RandomFlow: Auto Mix switched on for ' . $client->name . ' - switching DSTM off (was: ' . $dstm . ')');
-                $dstmClient->execute(['playerpref', 'plugin.dontstopthemusic:provider', 0]);
-            } else {
-                my $saved = $prefs->client($client)->get('mixDstmSavedProvider');
-                return unless defined $saved;
-                $prefs->client($client)->set('mixDstmSavedProvider', undef);
-                $log->info('RandomFlow: Auto Mix switched off for ' . $client->name . ' - restoring DSTM provider to ' . $saved);
-                $dstmClient->execute(['playerpref', 'plugin.dontstopthemusic:provider', $saved]);
-            }
-        };
-        if ($@) {
-            $log->error('RandomFlow: mixRunning setChange watcher CRASHED for ' . (blessed($client) ? $client->name : 'unknown client') . ' - ' . $@);
-        }
-    }, 'mixRunning');
+    # Auto Mix <-> DSTM clash - no longer auto-resolved (removed 30-09-2026,
+    # Henk: caused a real race, DSTM's own check consistently beat Auto
+    # Mix's own top-up timer whenever DSTM was set to a RandomFlow provider).
+    # The Live page's Auto Mix info popover now just warns that the two
+    # shouldn't both be active for the same player - the user picks one.
 
     Plugins::RandomFlow::MixRunner::init();
 
@@ -363,6 +296,28 @@ sub initPlugin {
     }
 
     return 1;
+}
+
+# Registers RandomFlow as a selectable "Don't Stop The Music" provider
+# (Henk, 30-09-2026) - a second, independent entry point into the same
+# picks Start Mix/Auto Mix already use, for players that prefer DSTM's
+# own on/off switch. Runs in postinitPlugin (after every plugin's own
+# initPlugin has completed) and only registers if DSTM itself is
+# actually enabled - same pattern real DSTM providers use (e.g.
+# CDrummond's MIPMixer), confirmed against that source rather than
+# guessed. See MixRunner::dstmHandler for the actual pick logic.
+sub postinitPlugin {
+    my $class = shift;
+
+    require Slim::Utils::PluginManager;
+    if (Slim::Utils::PluginManager->isEnabled('Slim::Plugin::DontStopTheMusic::Plugin')) {
+        require Slim::Plugin::DontStopTheMusic::Plugin;
+        Slim::Plugin::DontStopTheMusic::Plugin->registerHandler(
+            'PLUGIN_RANDOMFLOW_DSTM', \&Plugins::RandomFlow::MixRunner::dstmHandler);
+        Slim::Plugin::DontStopTheMusic::Plugin->registerHandler(
+            'PLUGIN_RANDOMFLOW_DSTM_BATCH', \&Plugins::RandomFlow::MixRunner::dstmHandlerBatch);
+        $log->info('RandomFlow: registered as a Don\'t Stop The Music provider (Mix + Batch).');
+    }
 }
 
 
@@ -420,6 +375,150 @@ sub _handleSetAutoMix {
     my $value = $request->getParam('_value');
     Plugins::RandomFlow::MixRunner::setAutoMix($client, $value ? 1 : 0);
 
+    $request->setStatusDone();
+    return;
+}
+
+sub _trackInfoStartMix {
+    my ($client) = @_;
+    return unless $client;
+
+    return {
+        type      => 'redirect',
+        name      => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_QUICKPLAY'),
+        favorites => 0,
+        jive      => { actions => { go => {
+            player     => 0,
+            cmd        => ['randomflow', 'startmix'],
+            nextWindow => 'nowPlaying',
+        } } },
+    };
+}
+
+sub _handleJiveMenu {
+    my $request = shift;
+    my $client = $request->client();
+    if (!$client) {
+        $request->setStatusNeedsClient();
+        return;
+    }
+
+    # Auto Mix state lives on the sync-group master (see _handleMixSettings)
+    my $mixMaster = $client->can('master') ? $client->master : $client;
+    my $running = $prefs->client($mixMaster)->get('mixRunning') ? 1 : 0;
+
+    my @items = ({
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_AUTOMIX'),
+        choiceStrings => [ ucfirst(Slim::Utils::Strings::string('OFF')), ucfirst(Slim::Utils::Strings::string('ON')) ],
+        selectedIndex => $running + 1,
+        actions       => { do => { choices => [
+            { player => 0, cmd => ['randomflow', 'setautomix', '0'] },
+            { player => 0, cmd => ['randomflow', 'setautomix', '1'] },
+        ] } },
+    }, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE'),
+        choiceStrings => [ Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_SONGS'), Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS') ],
+        selectedIndex => (($prefs->client($client)->get('mixMode') || 'songs') eq 'albums' ? 2 : 1),
+        actions       => { do => { choices => [
+            { player => 0, cmd => ['randomflow', 'setmixmode', 'songs'] },
+            { player => 0, cmd => ['randomflow', 'setmixmode', 'albums'] },
+        ] } },
+    });
+
+    # Filter choice: "no filter" plus every defined filter ('' = no filter, see _handleSetFilter)
+    my $filters = $prefs->get('genreFilters') || [];
+    if (@$filters) {
+        my $active = $prefs->client($client)->get('activeFilterId') || '';
+        my @ids    = ('', map { $_->{id} } @$filters);
+        my @names  = (Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_NOFILTER'), map { $_->{name} } @$filters);
+        my ($sel)  = grep { $ids[$_] eq $active } 0 .. $#ids;
+        push @items, {
+            text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_ACTIVEFILTER'),
+            choiceStrings => \@names,
+            selectedIndex => ($sel // 0) + 1,
+            actions       => { do => { choices => [
+                map { +{ player => 0, cmd => ['randomflow', 'setfilter', $_] } } @ids
+            ] } },
+        };
+    }
+
+    # Wobble in steps of 10 (0-100); an in-between value selects the nearest step
+    my @wobbleSteps = map { $_ * 10 } 0 .. 10;
+    my $wobble = $prefs->client($client)->get('wobble') || 0;
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_WOBBLE'),
+        choiceStrings => [ map { "$_" } @wobbleSteps ],
+        selectedIndex => int($wobble / 10 + 0.5) + 1,
+        actions       => { do => { choices => [
+            map { +{ player => 0, cmd => ['randomflow', 'setwobble', $_] } } @wobbleSteps
+        ] } },
+    };
+
+    # Batch size (10-100, steps of 10) only matters in Songs mode
+    if (($prefs->client($client)->get('mixMode') || 'songs') ne 'albums') {
+        my @batchSteps = map { $_ * 10 } 1 .. 10;
+        my $batch = $prefs->client($client)->get('batchSize') || 20;
+        push @items, {
+            text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_BATCHSIZE'),
+            choiceStrings => [ map { "$_" } @batchSteps ],
+            selectedIndex => (sort { $a <=> $b } (1, int($batch / 10 + 0.5), 10))[1],
+            actions       => { do => { choices => [
+                map { +{ player => 0, cmd => ['randomflow', 'setbatchsize', $_] } } @batchSteps
+            ] } },
+        };
+    }
+
+    # Max play count: "no limit" (sent as 'none') plus a fixed set; a current value outside
+    # the set is added as an extra choice so it is never lost
+    my $maxPlays = $prefs->client($client)->get('maxPlaycount');
+    my %playSet  = map { $_ => 1 } (0 .. 5, 10, 15, 20);
+    $playSet{$maxPlays} = 1 if defined $maxPlays && $maxPlays =~ /^\d+$/;
+    my @playSteps = sort { $a <=> $b } keys %playSet;
+    my ($playSel) = defined $maxPlays ? (grep { $playSteps[$_] == $maxPlays } 0 .. $#playSteps) : ();
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MAXPLAYCOUNT'),
+        choiceStrings => [ Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_NOLIMIT'), map { "$_" } @playSteps ],
+        selectedIndex => defined $playSel ? $playSel + 2 : 1,
+        actions       => { do => { choices => [
+            { player => 0, cmd => ['randomflow', 'setmaxplaycount', 'none'] },
+            map { +{ player => 0, cmd => ['randomflow', 'setmaxplaycount', $_] } } @playSteps
+        ] } },
+    };
+
+    # Artist cooldown (tracks): fixed set, a current value outside it is added as an extra choice
+    my $artistCd  = $prefs->client($client)->get('artistCooldownTracks') || 0;
+    my %artistSet = map { $_ => 1 } (0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100);
+    $artistSet{$artistCd} = 1;
+    my @artistSteps = sort { $a <=> $b } keys %artistSet;
+    my ($artistSel) = grep { $artistSteps[$_] == $artistCd } 0 .. $#artistSteps;
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_ARTISTCOOLDOWNTRACKS'),
+        choiceStrings => [ map { "$_" } @artistSteps ],
+        selectedIndex => $artistSel + 1,
+        actions       => { do => { choices => [
+            map { +{ player => 0, cmd => ['randomflow', 'setartistcooldown', $_] } } @artistSteps
+        ] } },
+    };
+
+    # Album cooldown (tracks): same shape as artist cooldown above
+    my $albumCd  = $prefs->client($client)->get('albumCooldownTracks') || 0;
+    my %albumSet = map { $_ => 1 } (0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100);
+    $albumSet{$albumCd} = 1;
+    my @albumSteps = sort { $a <=> $b } keys %albumSet;
+    my ($albumSel) = grep { $albumSteps[$_] == $albumCd } 0 .. $#albumSteps;
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_ALBUMCOOLDOWNTRACKS'),
+        choiceStrings => [ map { "$_" } @albumSteps ],
+        selectedIndex => $albumSel + 1,
+        actions       => { do => { choices => [
+            map { +{ player => 0, cmd => ['randomflow', 'setalbumcooldown', $_] } } @albumSteps
+        ] } },
+    };
+
+    my $cnt = 0;
+    $request->setResultLoopHash('item_loop', $cnt++, $_) for @items;
+    $request->addResult('offset', 0);
+    $request->addResult('count', scalar(@items));
     $request->setStatusDone();
     return;
 }
@@ -591,6 +690,11 @@ sub _handleMixSettings {
 
     $request->addResult('filters', \@filterList);
     $request->addResult('activeFilterId', $clientPrefs->get('activeFilterId') || '');
+    # Album Mix mode (Henk, 29-09-2026) - read once at page load, same as
+    # the rest of this call's fields; live.html uses it to hide the
+    # Songs-only Start Batch/Top Up buttons and switch Replace Track's
+    # behaviour, see MixRunner.pm's own design notes.
+    $request->addResult('mixMode', $clientPrefs->get('mixMode') || 'songs');
     # mixRunning ("Auto Mix": Henk, 26-09-2026) is stored on the sync-group
     # MASTER, not necessarily this exact player (see MixRunner.pm's own
     # startMix/stopMix comment on why) - read it from there, same as the
@@ -671,6 +775,35 @@ sub _clamp0to100 {
     my $value = int($raw);
     $value = 100 if $value > 100;
     return $value;
+}
+
+sub _handleSetBatchSize {
+    my $request = shift;
+    my $client = $request->client();
+    return unless $client;
+
+    my $raw = $request->getParam('_value');
+    if (defined $raw && $raw =~ /^\d+$/) {
+        my $size = int($raw);
+        $size = 10  if $size < 10;
+        $size = 100 if $size > 100;
+        $prefs->client($client)->set('batchSize', $size);
+    }
+
+    $request->setStatusDone();
+    return;
+}
+
+sub _handleSetMixMode {
+    my $request = shift;
+    my $client = $request->client();
+    return unless $client;
+
+    my $mode = ($request->getParam('_value') || '') eq 'albums' ? 'albums' : 'songs';
+    $prefs->client($client)->set('mixMode', $mode);
+
+    $request->setStatusDone();
+    return;
 }
 
 sub _handleSetWobble {
