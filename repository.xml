@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<extensions>
+	<details>
+		<title lang="EN">HB64's LMS Plugins</title>
+	</details>
+	<plugins>
+		<plugin name="RandomFlow" version="1.0" minTarget="7.9" maxTarget="*">
+			<title lang="EN">Random Flow</title>
+			<desc lang="EN">Dynamic music-mixing plugin: builds and sustains a continuous mix from your library, with per-player filters, artist/album weighting and cooldowns, Batch and Album Mix modes, and Don't Stop The Music integration.</desc>
+			<creator>Henk</creator>
+			<link>https://github.com/HB64/LMS-RandomFlow</link>
+			<category>playlists</category>
+			<url>https://github.com/HB64/LMS-RandomFlow/releases/download/1.0/randomflow-1.0.zip</url>
+			<sha>7f9543bdbb6ea915c93b0e1575cfe127eff476d5</sha>
+		</plugin>
+	</plugins>
+</extensions>
