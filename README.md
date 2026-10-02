@@ -37,6 +37,10 @@ Modeled on [SugarCube](https://github.com/HB64/lms-sugarcube)'s mixing approach,
 
 Logitech Media Server / Lyrion Music Server 7.9 or later.
 
+## Limitations
+
+- **Artist/Album cooldowns need a large, varied library to work well.** A cooldown excludes an artist (or album) entirely for N tracks after it last played. The smaller or less varied your library (or the narrower your active filter), the sooner that exclusion starts eating into most of what's left to pick from - so on a small collection you'll hit the practical ceiling of what the cooldown can do much faster than on a large one.
+
 ## License
 
 See [LICENSE](LICENSE).
