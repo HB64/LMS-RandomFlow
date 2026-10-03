@@ -11,9 +11,9 @@ package Plugins::RandomFlow::Settings::Basic;
 #
 #  1b. historyLimit - how many ALREADY-PLAYED tracks a running mix keeps
 #      in the queue before MixRunner.pm trims the oldest ones off the
-#      front (added 20-09-2026, Henk - "voorkomt dat de wachtrij bij een
-#      lange mix eindeloos doorgroeit"). Global, not per-player. Three
-#      states, distinguished by Perl's own defined/length, not by
+#      front, so the queue doesn't grow without bound over a long mix.
+#      Global, not per-player. Three states, distinguished by Perl's
+#      own defined/length, not by
 #      MixRunner.pm re-guessing intent:
 #        - never saved (undef)   -> MixRunner.pm's own default (10)
 #        - saved blank ('')      -> no limit at all (old, pre-this-
@@ -28,8 +28,8 @@ package Plugins::RandomFlow::Settings::Basic;
 #      playing index down rather than disturbing playback).
 #
 #  1c. historyDisplayCount - how many tracks the Live page's "History"
-#      panel shows (added 25-09-2026, Henk). NOT the same setting as
-#      historyLimit above - that one trims the running mix's own QUEUE;
+#      panel shows. NOT the same setting as historyLimit above - that
+#      one trims the running mix's own QUEUE;
 #      this one only controls how many rows TrackSelector::
 #      findRecentlyPlayed() reads back from Lyrion's own lastPlayed
 #      tracking for display. Global, not per-player. Deliberately just
@@ -42,36 +42,32 @@ package Plugins::RandomFlow::Settings::Basic;
 #                                  TrackSelector::MAX_HISTORY_DISPLAY_COUNT)
 #
 #  2. genreFilters - the named genre filters (like MusicIP's filters):
-#     each is { id, name, genres, artists, years }. `artists` (added
-#     20-09-2026, Henk) is a plain comma-separated text field, not a
-#     checkbox list like genres - a track matching any of these artists
-#     (partial, case-insensitive) is included regardless of genre; see
-#     TrackSelector.pm's design notes for exactly how it combines with
-#     genres. `years` (added 25-09-2026, Henk - a gap noticed while
-#     discussing the Live page: this had been discussed before but never
-#     actually built) is ALSO a plain comma-separated text field, but
-#     behaves entirely differently from `artists`: each entry is either a
-#     single year ("1985") or an inclusive range ("1980-1989"), and a
-#     track must match at least one of the given entries - but unlike
-#     `artists` (which WIDENS the genre match with an OR), a non-empty
-#     `years` is a second, independent HARD AND requirement on top of the
-#     genre/artists match (Henk confirmed 25-09-2026: "AND klinkt het
-#     meest logisch"). Blank/empty means no year restriction at all, same
+#     each is { id, name, genres, artists, years }. `artists` is a plain
+#     comma-separated text field, not a checkbox list like genres - a
+#     track matching any of these artists (partial, case-insensitive) is
+#     included regardless of genre; see TrackSelector.pm's design notes
+#     for exactly how it combines with genres. `years` is ALSO a plain
+#     comma-separated text field, but behaves entirely differently from
+#     `artists`: each entry is either a single year ("1985") or an
+#     inclusive range ("1980-1989"), and a track must match at least one
+#     of the given entries - but unlike `artists` (which WIDENS the
+#     genre match with an OR), a non-empty `years` is a second,
+#     independent HARD AND requirement on top of the genre/artists
+#     match. Blank/empty means no year restriction at all, same
 #     "absent = no constraint" convention every other criterion here
 #     uses. Malformed entries (anything not a bare 4-digit year or a
 #     4-digit-dash-4-digit range) are silently dropped at save time by
 #     _parseYears() below, same tolerant approach _parseArtists() already
 #     takes. See TrackSelector.pm's design notes for exactly how this
 #     turns into SQL. Deliberately filter-level only, not also a
-#     per-player quick-override like genreBlock - Henk confirmed
-#     25-09-2026 he didn't want that, the full filter editor here is
-#     always reachable from both the player settings page and the Live
-#     page if a player needs something different. Managed here, chosen
-#     per-player on the player settings page, and (later) switchable from
-#     the Live page. `id` is a stable identifier assigned once at
-#     creation (nextFilterId counter below) and never reused or
-#     recomputed from the name, so renaming a filter never breaks a
-#     player's reference to it (Henk confirmed 20-09-2026).
+#     per-player quick-override like genreBlock - the full filter editor
+#     here is always reachable from both the player settings page and
+#     the Live page if a player needs something different. Managed
+#     here, chosen per-player on the player settings page, and (later)
+#     switchable from the Live page. `id` is a stable identifier
+#     assigned once at creation (nextFilterId counter below) and never
+#     reused or recomputed from the name, so renaming a filter never
+#     breaks a player's reference to it.
 #
 #     genreFilters is an array-type pref, so - same reasoning as the
 #     array-type prefs in Settings/Player.pm - it's handled explicitly
@@ -191,7 +187,7 @@ sub handler {
 # trimmed, empties dropped. Deliberately plain text rather than a
 # checkbox list like genres: the artist list isn't drawn from a known,
 # bounded set the way genres are (Slim::Schema has no equivalent "all
-# artists" picker here), and Henk explicitly wants it as free text.
+# artists" picker here).
 sub _parseArtists {
     my ($raw) = @_;
     return () unless defined $raw && length $raw;

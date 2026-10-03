@@ -3,9 +3,9 @@ package Plugins::RandomFlow::MixRunner;
 #
 # Starts and sustains a continuous mix for a player - the missing piece
 # between "TrackSelector.pm can pick tracks" and "Lyrion actually plays
-# them". Modelled directly on SugarCube's own Chain Mode mechanism
-# (Henk pointed to the SC-EXTMIP build's Plugin.pm/Breakout.pm,
-# 20-09-2026) rather than invented from scratch:
+# them". Modelled directly on SugarCube's own Chain Mode mechanism (see
+# the SC-EXTMIP build's Plugin.pm/Breakout.pm) rather than invented from
+# scratch:
 #
 #   - startMix($client) is SugarCube's AutoStartMix: clear the queue,
 #     pick ONE track from the player's resolved filter (activeFilterId
@@ -35,27 +35,27 @@ package Plugins::RandomFlow::MixRunner;
 #     switching SugarCube's Chain off, it does NOT touch whatever is
 #     currently queued or playing, it only stops sustaining it.
 #
-# DSTM (Henk, 30-09-2026): Auto Mix already turns Lyrion's own "Don't
-# Stop The Music" off/on for a player while it runs (see Plugin.pm's
-# mixRunning watcher). dstmHandler() below is the separate, opposite
-# direction - RandomFlow registered as a selectable DSTM PROVIDER, for
-# players that use DSTM's own on/off switch instead of Auto Mix. Same
-# TrackSelector picks either way, just handed back via DSTM's own
-# callback instead of queued directly.
+# DSTM: Auto Mix already turns Lyrion's own "Don't Stop The Music" off/on
+# for a player while it runs (see Plugin.pm's mixRunning watcher).
+# dstmHandler() below is the separate, opposite direction - RandomFlow
+# registered as a selectable DSTM PROVIDER, for players that use DSTM's
+# own on/off switch instead of Auto Mix. Same TrackSelector picks either
+# way, just handed back via DSTM's own callback instead of queued
+# directly.
 #
-# SYNCED PLAYERS (e.g. a stereo-paired Boom Links/Boom Rechts, Henk's
-# case, found 20-09-2026): Lyrion ALWAYS sends the 'playlist newsong'
-# notification for the sync-group's MASTER player, never for whichever
-# physical member is actually addressed (confirmed against the real
-# slimserver source, Slim::Player::StreamingController::_Playing:
-# "Slim::Control::Request::notifyFromArray($self->master(), ...)").
-# Henk's two Booms show up as two SEPARATE entries on this plugin's own
+# SYNCED PLAYERS (e.g. a stereo-paired pair of players): Lyrion ALWAYS
+# sends the 'playlist newsong' notification for the sync-group's MASTER
+# player, never for whichever physical member is actually addressed
+# (confirmed against the real slimserver source,
+# Slim::Player::StreamingController::_Playing:
+# "Slim::Control::Request::notifyFromArray($self->master(), ...)"). Each
+# synced player shows up as a SEPARATE entry on this plugin's own
 # per-player settings page though, each with its own filter - and which
 # one is master changes on every Lyrion restart. So:
 #   - startMix($client) stores mixRunning AND which client's settings
 #     were actually used (mixSourceClientId) under $client->master's own
 #     prefs - that's the identity _maybeQueueNext will always be called
-#     with, whichever Boom happens to be master today.
+#     with, whichever player happens to be master today.
 #   - _maybeQueueNext resolves mixSourceClientId back to the actual
 #     client object (Slim::Player::Client::getClient) and uses THAT
 #     one's filter/block settings, falling back to the notified client
@@ -63,7 +63,7 @@ package Plugins::RandomFlow::MixRunner;
 #     disconnected, or a plain unsynced player where this is moot since
 #     ->master just returns itself).
 # Without this, a synced pair silently drops the mix after track 1
-# whenever the "wrong" Boom happens to be master - no log line at all,
+# whenever the "wrong" player happens to be master - no log line at all,
 # since the very first check (mixRunning) already fails silently.
 #
 
@@ -115,28 +115,29 @@ sub startMix {
     # this call was actually made for.
     my $master = $client->can('master') ? $client->master : $client;
 
-    # Henk, 26-09-2026: found that clicking the "Start New Mix" button on the Live page while
-    # Auto Mix was explicitly set to Disabled started a mix anyway - startMix() always did, since
-    # it predates the separate Auto Mix toggle (setAutoMix, above) and never checked mixRunning at
-    # all, it just sets it to 1 unconditionally once a track is queued (see below). With Auto Mix
-    # now the dedicated master on/off switch for mixing on a player, that's backwards: Auto Mix
-    # off has to mean mixing is off, full stop, not "off until someone clicks the other button".
-    # Refuse here the same way a missing filter is refused - Start New Mix now only acts as
-    # "give me a fresh pick right now" WHILE Auto Mix is already on; turning mixing on at all is
-    # Auto Mix's job alone.
+    # Clicking "Start New Mix" while Auto Mix is explicitly Disabled must
+    # not start a mix anyway: startMix() predates the separate Auto Mix
+    # toggle (setAutoMix, above) and never checked mixRunning on its own,
+    # it just set it to 1 unconditionally once a track was queued (see
+    # below). With Auto Mix as the dedicated master on/off switch for
+    # mixing on a player, Auto Mix off has to mean mixing is off, full
+    # stop - not "off until someone clicks the other button". Refuse here
+    # the same way a missing filter is refused - Start New Mix now only
+    # acts as "give me a fresh pick right now" WHILE Auto Mix is already
+    # on; turning mixing on at all is Auto Mix's job alone.
     if (!$prefs->client($master)->get('mixRunning')) {
         $log->warn("RandomFlow::MixRunner: startMix refused for " . $client->name . " - Auto Mix is disabled for this player. Enable Auto Mix first.");
         _warnAutoMixOff($client);
         return 0;
     }
 
-    # Henk's real case (20-09-2026): a stereo-paired Boom shows up as two
-    # separately-addressable players, but he only wants to configure a
-    # filter once for the pair - and Lyrion's alarm clock always fires
-    # for whichever one happens to be sync master today, which may be
-    # the one he never got around to setting up. So: use this player's
-    # own filter if it has one, otherwise fall back to the first synced
-    # sibling that does, rather than refusing outright.
+    # A synced pair of players shows up as two separately-addressable
+    # players, but a filter is typically only configured once for the
+    # pair - and Lyrion's alarm clock always fires for whichever one
+    # happens to be sync master today, which may be the one that was
+    # never configured. So: use this player's own filter if it has one,
+    # otherwise fall back to the first synced sibling that does, rather
+    # than refusing outright.
     my ($sourceClient, $criteria) = _resolveSource($client);
 
     # An empty genreGroup here means "no filter chosen anywhere in this
@@ -174,11 +175,11 @@ sub startMix {
     return 1;
 }
 
-# Album Mix mode's startMix (Henk, 29-09-2026): same idea, but the pick
-# is a whole album (TrackSelector::selectAlbums), queued in full.
-# mixNextAlbumTrackCount is reset to 0 - nothing is queued ahead yet,
-# see _queueNextAlbum()/replaceNext() below for how that fills in once
-# the mix runs long enough to top up.
+# Album Mix mode's startMix: same idea, but the pick is a whole album
+# (TrackSelector::selectAlbums), queued in full. mixNextAlbumTrackCount
+# is reset to 0 - nothing is queued ahead yet, see
+# _queueNextAlbum()/replaceNext() below for how that fills in once the
+# mix runs long enough to top up.
 sub _startAlbumMix {
     my ($client, $master, $sourceClient, $criteria) = @_;
 
@@ -211,14 +212,14 @@ sub stopMix {
     $log->info("RandomFlow::MixRunner: mix stopped for " . $client->name . " (queue left as-is).");
 }
 
-# The Live page's "Auto Mix: Enabled/Disabled" toggle (Henk, 26-09-2026)
-# calls THIS, not startMix()/stopMix() above - on purpose. Henk found that
-# reusing startmix for "Enabled" was throwing away whatever track he was
-# actually enjoying at the moment he flipped the toggle, because startMix
-# always does 'playlist clear' + queues and jumps to a fresh pick right
-# away - correct for the dedicated "Start New Mix" button (that's the
-# whole point of that button), wrong for a toggle that's meant to just
-# arm/disarm continuous mixing from wherever playback already is. Modelled
+# The Live page's "Auto Mix: Enabled/Disabled" toggle calls THIS, not
+# startMix()/stopMix() above - on purpose. Reusing startMix for "Enabled"
+# would throw away whatever track is currently playing at the moment the
+# toggle is flipped, because startMix always does 'playlist clear' +
+# queues and jumps to a fresh pick right away - correct for the dedicated
+# "Start New Mix" button (that's the whole point of that button), wrong
+# for a toggle that's meant to just arm/disarm continuous mixing from
+# wherever playback already is. Modelled
 # on how SC-EXTMIP's own Chain toggle behaves: scLvSetStatus (liveview.html)
 # just flips the sugarcube_status pref directly, it never touches the
 # queue or calls AutoStartMix itself.
@@ -249,19 +250,18 @@ sub setAutoMix {
     my ($client, $value) = @_;
     return unless $client;
 
-    # Henk, 26-09-2026: wrapped the whole body in eval - every attempt to
-    # reproduce the "Empty reply from server" crash (confirmed via curl,
-    # bypassing the browser entirely, so this is a real server-side crash,
-    # not a network/browser issue) has produced NOTHING in Lyrion's own
-    # log, not even an ERROR line, which normally would appear if Lyrion's
-    # own dispatcher caught a die() here. That silence is itself the clue -
-    # something in this call chain (this function, or the mixRunning
-    # setChange watcher in Plugin.pm's initPlugin, which fires
-    # SYNCHRONOUSLY from the $prefs->client($master)->set('mixRunning', ...)
-    # call below) is dying in a way that isn't getting logged anywhere.
-    # This eval is a safety net specifically to CATCH that and log it
-    # explicitly, so the next test finally shows the real error instead of
-    # silence.
+    # The whole body is wrapped in eval: the "Empty reply from server"
+    # crash (confirmed via curl, bypassing the browser entirely, so it's a
+    # real server-side crash, not a network/browser issue) produces
+    # NOTHING in Lyrion's own log, not even an ERROR line, which normally
+    # would appear if Lyrion's own dispatcher caught a die() here. That
+    # silence is itself the clue - something in this call chain (this
+    # function, or the mixRunning setChange watcher in Plugin.pm's
+    # initPlugin, which fires SYNCHRONOUSLY from the
+    # $prefs->client($master)->set('mixRunning', ...) call below) can die
+    # in a way that isn't getting logged anywhere. This eval is a safety
+    # net specifically to CATCH that and log it explicitly instead of
+    # failing silently.
     my $ok = eval {
         my $master = $client->can('master') ? $client->master : $client;
 
@@ -365,13 +365,13 @@ sub replaceNext {
     $log->info("RandomFlow::MixRunner: replaced the upcoming track with '" . $picked->[0]{title} . "' by '" . ($picked->[0]{artist} // '?') . "' for " . $master->name . ".");
 }
 
-# Album Mix mode's "Replace Track" (Henk, 29-09-2026): replaces the
-# WHOLE already-queued next album, not a single track. Only acts when
-# exactly mixNextAlbumTrackCount tracks are still queued after the
-# current one - a sanity check against drift (e.g. a manual queue
-# edit), same "checked explicitly rather than assumed" spirit as the
-# song-mode version above. See _queueNextAlbum() below for how that
-# pref gets set in the first place.
+# Album Mix mode's "Replace Track": replaces the WHOLE already-queued
+# next album, not a single track. Only acts when exactly
+# mixNextAlbumTrackCount tracks are still queued after the current one -
+# a sanity check against drift (e.g. a manual queue edit), same "checked
+# explicitly rather than assumed" spirit as the song-mode version above.
+# See _queueNextAlbum() below for how that pref gets set in the first
+# place.
 sub _replaceNextAlbum {
     my ($master, $criteria) = @_;
 
@@ -408,15 +408,15 @@ sub _replaceNextAlbum {
     $log->info("RandomFlow::MixRunner: replaced the upcoming album with '" . $album->{albumTitle} . "' by '" . ($album->{albumArtist} // '?') . "' for " . $master->name . ".");
 }
 
-# Batch mode (Henk, 28-09-2026, modelled on SC-EXTMIP's Start Batch/
-# "top up" pair): unlike startMix/_maybeQueueNext, which only ever keep
-# "current + 1 upcoming" queued, these two queue several tracks at
-# once - how many is the player's own "batchSize" setting (Settings/
-# Player.pm, 10-100), read via _criteriaFor/resolveCriteria like any
-# other per-player setting. _maybeQueueNext's own "only top up when
-# exactly 1 left" guard already leaves a multi-track queue alone until
-# it plays down to its last track, so no separate batch-active flag is
-# needed - Auto Mix top-up resumes on its own once the batch runs out.
+# Batch mode (modelled on SC-EXTMIP's Start Batch/"top up" pair): unlike
+# startMix/_maybeQueueNext, which only ever keep "current + 1 upcoming"
+# queued, these two queue several tracks at once - how many is the
+# player's own "batchSize" setting (Settings/Player.pm, 10-100), read via
+# _criteriaFor/resolveCriteria like any other per-player setting.
+# _maybeQueueNext's own "only top up when exactly 1 left" guard already
+# leaves a multi-track queue alone until it plays down to its last track,
+# so no separate batch-active flag is needed - Auto Mix top-up resumes on
+# its own once the batch runs out.
 sub startBatch {
     my ($client) = @_;
     return unless $client;
@@ -435,9 +435,9 @@ sub startBatch {
         return 0;
     }
 
-    # Batch mode is a Songs-only concept (Henk, 29-09-2026) - Start
-    # Batch/Top Up are hidden in the Live page's Album Mix mode, and
-    # refused here too in case a stale page still shows them.
+    # Batch mode is a Songs-only concept - Start Batch/Top Up are hidden
+    # in the Live page's Album Mix mode, and refused here too in case a
+    # stale page still shows them.
     if (($criteria->{mixMode} || 'songs') eq 'albums') {
         $log->warn("RandomFlow::MixRunner: startBatch refused for " . $client->name . " - not available in Album Mix mode.");
         return 0;
@@ -504,12 +504,11 @@ sub topUpQueue {
     return 1;
 }
 
-# The "Afgewezen tracks" panel's own "queue as next" action (Henk,
-# 25-09-2026) - queues a SPECIFIC, caller-chosen track as the upcoming
-# one, rather than letting TrackSelector pick randomly like replaceNext()
-# above does. Deliberately contradictory with the whole point of the
-# "Afgewezen" list (a track that got excluded can still be added back in
-# manually) - confirmed as intentional by Henk, same as SugarCube's own
+# The "Afgewezen tracks" panel's own "queue as next" action - queues a
+# SPECIFIC, caller-chosen track as the upcoming one, rather than letting
+# TrackSelector pick randomly like replaceNext() above does. Intentionally
+# contradicts the whole point of the "Afgewezen" list (a track that got
+# excluded can still be added back in manually), same as SugarCube's own
 # "Use as Next" on its MIP Response list works the same way.
 #
 # Same "current + at most 1 upcoming" invariant as replaceNext() (see its
@@ -526,9 +525,8 @@ sub queueSpecificTrack {
     my $master = $client->can('master') ? $client->master : $client;
     return unless $prefs->client($master)->get('mixRunning');
 
-    # "Afgewezen tracks" is a Songs-only panel (Henk, 29-09-2026) - not
-    # shown in Album Mix mode, and refused here too in case a stale
-    # page still calls it.
+    # "Afgewezen tracks" is a Songs-only panel - not shown in Album Mix
+    # mode, and refused here too in case a stale page still calls it.
     my $sourceId     = $prefs->client($master)->get('mixSourceClientId');
     my $sourceClient = (defined $sourceId && Slim::Player::Client::getClient($sourceId)) || $master;
     return if (_criteriaFor($sourceClient)->{mixMode} || 'songs') eq 'albums';
@@ -555,10 +553,10 @@ sub queueSpecificTrack {
 # Registered with Lyrion's own "Don't Stop The Music" plugin (see
 # Plugin.pm's postinitPlugin) as TWO selectable providers - "RandomFlow
 # Mix" (dstmHandler, this one) and "RandomFlow Batch" (dstmHandlerBatch
-# below), Henk's own request (30-09-2026) for a second, batchSize-sized
-# option alongside the normal 1-track-per-call one. Both share
-# _dstmPick(); only the Songs-mode pick count differs - Album mode is
-# always just "one album" either way, there's no batch-of-albums concept.
+# below), a second, batchSize-sized option alongside the normal
+# 1-track-per-call one. Both share _dstmPick(); only the Songs-mode pick
+# count differs - Album mode is always just "one album" either way,
+# there's no batch-of-albums concept.
 sub dstmHandler {
     my ($client, $cb) = @_;
     return _dstmPick($client, $cb, 1);
@@ -612,16 +610,15 @@ sub _dstmPick {
 
     # DSTM's own callback does "my ($client, $tracks) = @_;" then
     # dereferences $tracks as an arrayref (confirmed against the real
-    # source, Henk 30-09-2026) - it wants ONE arrayref back, not a
-    # flat list of tracks.
+    # source) - it wants ONE arrayref back, not a flat list of tracks.
     my @tracks = grep { defined } map { Slim::Schema->objectForUrl($_) } @urls;
     return $cb->($client, \@tracks);
 }
 
-# A filter now "counts" if EITHER its genre group or its artists list
-# (added 20-09-2026, additive - see TrackSelector.pm's design notes) is
-# non-empty - a player picking a filter that's artists-only, no genres
-# at all, must not be refused as "no filter chosen".
+# A filter "counts" if EITHER its genre group or its artists list (see
+# TrackSelector.pm's design notes) is non-empty - a player picking a
+# filter that's artists-only, no genres at all, must not be refused as
+# "no filter chosen".
 sub _hasFilter {
     my ($criteria) = @_;
     return @{ $criteria->{genreGroup} || [] } || @{ $criteria->{filterArtists} || [] };
@@ -630,11 +627,11 @@ sub _hasFilter {
 # On-screen warning for the OTHER way a mix can fail to (keep) running:
 # a filter WAS chosen, but selectTracks() still came back with nothing -
 # an unexpectedly narrow filter, everything excluded by
-# cooldown/playcount/rating, or (added 21-09-2026, after Henk hit this
-# for real - a Lyrion upgrade briefly left persist.db without one of its
-# tables) an underlying database error. Without this, that failure was
-# only ever visible in the log - easy to miss, especially when it's an
-# alarm firing while nobody's looking at the log.
+# cooldown/playcount/rating, or an underlying database error (e.g. a
+# Lyrion upgrade briefly leaving persist.db without one of its tables).
+# Without this, that failure was only ever visible in the log - easy to
+# miss, especially when it's an alarm firing while nobody's looking at
+# the log.
 sub _warnNoTrack {
     my ($client) = @_;
     return unless $client;
@@ -661,9 +658,9 @@ sub _warnNoFilter {
     );
 }
 
-# On-screen warning shown whenever "Start New Mix" is refused because Auto Mix is currently
-# disabled for this player - see the 26-09-2026 comment on startMix() for why. Same pattern as
-# _warnNoFilter/_warnNoTrack above.
+# On-screen warning shown whenever "Start New Mix" is refused because
+# Auto Mix is currently disabled for this player - see the comment on
+# startMix() for why. Same pattern as _warnNoFilter/_warnNoTrack above.
 sub _warnAutoMixOff {
     my ($client) = @_;
     return unless $client;
@@ -745,13 +742,12 @@ sub _maybeQueueNext {
     _trimHistory($client, _historyLimit()) if $queued;
 }
 
-# Album Mix mode's top-up (Henk, 29-09-2026): reuses the exact same
-# "exactly 1 track left" trigger _maybeQueueNext already uses for song
-# mode - same "almost done" moment, just queuing a whole album instead
-# of one track. Excludes the currently playing album so it can't repeat
-# immediately. Remembers how many tracks got appended
-# (mixNextAlbumTrackCount/mixNextAlbumId) so replaceNext() above knows
-# exactly how much of the tail to remove/replace.
+# Album Mix mode's top-up: reuses the exact same "exactly 1 track left"
+# trigger _maybeQueueNext already uses for song mode - same "almost done"
+# moment, just queuing a whole album instead of one track. Excludes the
+# currently playing album so it can't repeat immediately. Remembers how
+# many tracks got appended (mixNextAlbumTrackCount/mixNextAlbumId) so
+# replaceNext() above knows exactly how much of the tail to remove/replace.
 sub _queueNextAlbum {
     my ($client, $criteria, $curUrl) = @_;
 
@@ -821,10 +817,10 @@ sub _trimHistory {
 # use right now" - the same filter/block resolution a real startMix or
 # _maybeQueueNext pick would use, sync-group fallback included (see the
 # SYNCED PLAYERS design note at the top of this file). Plugin.pm's
-# rejectedtracks dispatch handler (Henk, 25-09-2026 - "Afgewezen tracks"
-# panel) is the first caller: what it reports as rejected has to be
-# resolved exactly the same way, or it could show reasons for a
-# different player's filter than the one actually mixing.
+# rejectedtracks dispatch handler ("Afgewezen tracks" panel) is the first
+# caller: what it reports as rejected has to be resolved exactly the same
+# way, or it could show reasons for a different player's filter than the
+# one actually mixing.
 sub resolveCriteria {
     my ($client) = @_;
     return unless $client;

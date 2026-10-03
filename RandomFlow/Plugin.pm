@@ -38,8 +38,9 @@ package Plugins::RandomFlow::Plugin;
 #
 #   TEST 4 (genre is always a hard filter): uses a single narrow genre
 #   (Rock) instead of the broad 25-genre list, and checks that 0 of 30
-#   picks land outside it. (This used to test a "Style"/genreStrictness
-#   soft-genre mode - removed 20-09-2026, genre must always be hard.)
+#   picks land outside it. (This used to also test a "Style"/
+#   genreStrictness soft-genre mode; genre is now always a hard filter,
+#   so this just confirms that stays true.)
 #
 #   TEST 5 (Wobble): reuses TEST 2's test artist, and compares how
 #   often that artist is picked over 30 single-track selections at
@@ -55,9 +56,9 @@ package Plugins::RandomFlow::Plugin;
 #   deleted filter id resolving to an empty list rather than "everything".
 #   Doesn't touch the database or TrackSelector.pm at all.
 #
-# MixRunner.pm (added 20-09-2026, modelled on SugarCube's own Chain Mode
-# mechanism) is the piece that actually starts/sustains a mix on a real
-# player - see its own header comment for how. It is DELIBERATELY NOT
+# MixRunner.pm, modelled on SugarCube's own Chain Mode mechanism, is the
+# piece that actually starts/sustains a mix on a real player - see its
+# own header comment for how. It is DELIBERATELY NOT
 # exercised by the auto-running tests above: unlike every TEST here,
 # starting a mix clears a player's queue and starts playback for real,
 # which this passive, read-only test harness must never do on its own.
@@ -122,13 +123,13 @@ sub initPlugin {
         Plugins::RandomFlow::Settings::Basic->new;
         Plugins::RandomFlow::Settings::Player->new;
 
-        # Quickplay's browse/Extras menu entries (Henk, 23-09-2026).
+        # Quickplay's browse/Extras menu entries.
         # NOT done via a separate webPages() class method, even though
         # that's the usual mechanism (see the removed sub's own comment
         # below, kept as a warning) - webPages() is only ever invoked
         # FROM WITHIN Slim::Plugin::Base's own initPlugin
         # ($class->can('webPages') && $class->webPages, confirmed against
-        # the real Lyrion source, 24-09-2026). This throwaway Plugin.pm
+        # the real Lyrion source). This throwaway Plugin.pm
         # doesn't inherit Slim::Plugin::Base (same reason ProtocolHandler.pm's
         # own header flags _pluginDataFor('icon') as unsafe here), so that
         # method body was simply dead code - nothing ever called it, which
@@ -145,13 +146,13 @@ sub initPlugin {
     # navigation just to start or stop a player's mix.
     Slim::Control::Request::addDispatch(['randomflow', 'startmix'], [1, 0, 0, \&_handleStartMix]);
     Slim::Control::Request::addDispatch(['randomflow', 'stopmix'],  [1, 0, 0, \&_handleStopMix]);
-    # setautomix - Henk, 26-09-2026: NOT the same as startmix/stopmix
-    # above. He found that flipping the new Auto Mix toggle mid-song was
-    # reusing 'startmix', which deliberately clears the queue and jumps
-    # to a fresh pick right away (that's the right behaviour for the
-    # dedicated "Start New Mix" icon button, which exists specifically to
-    # do that) - but it meant enabling Auto Mix while enjoying a track
-    # threw that track away. This action just arms/disarms the mixRunning
+    # setautomix - NOT the same as startmix/stopmix above. Flipping the
+    # Auto Mix toggle mid-song must not reuse 'startmix', which
+    # deliberately clears the queue and jumps to a fresh pick right away
+    # (that's the right behaviour for the dedicated "Start New Mix" icon
+    # button, which exists specifically to do that) - reusing it here
+    # would throw away the track currently playing. This action just
+    # arms/disarms the mixRunning
     # pref without ever touching current playback - see
     # MixRunner::setAutoMix's own comment for exactly what it does
     # instead. Reached the same JSON-RPC way as startmix/stopmix, and
@@ -175,7 +176,7 @@ sub initPlugin {
             func   => \&_trackInfoStartMix,
         )
     );
-    # replacenext - Henk, 25-09-2026: RandomFlow's own equivalent of
+    # replacenext - RandomFlow's own equivalent of
     # SC-EXTMIP's "Replace Track" ('sugarcube replacenext'/scReplaceNext) -
     # same JSON-RPC shape, so the Live page's "Replace Track" icon button
     # never needs a full page navigation either. See MixRunner::replaceNext
@@ -184,13 +185,13 @@ sub initPlugin {
     # track plus at most ONE upcoming track, so "exactly one queued" is
     # always the actual state whenever there IS anything to replace at all.
     Slim::Control::Request::addDispatch(['randomflow', 'replacenext'], [1, 0, 0, \&_handleReplaceNext]);
-    # startbatch/topup - Henk, 28-09-2026: SC-EXTMIP's Start Batch/"top
+    # startbatch/topup - SC-EXTMIP's Start Batch/"top
     # up" pair (Live page, under Current Track / Next Track). Both take
     # the batch size from the player's own "batchSize" setting (Settings/
     # Player.pm) - see MixRunner::startBatch/topUpQueue.
     Slim::Control::Request::addDispatch(['randomflow', 'startbatch'], [1, 0, 0, \&_handleStartBatch]);
     Slim::Control::Request::addDispatch(['randomflow', 'topup'],      [1, 0, 0, \&_handleTopUp]);
-    # rejectedtracks - Henk, 25-09-2026: backs the Live page's "Afgewezen
+    # rejectedtracks - backs the Live page's "Afgewezen
     # tracks" panel. Resolves this player's (or its synced source
     # player's - see MixRunner::resolveCriteria) filter the same way a
     # real pick would, then asks TrackSelector::findRejectedTracks() for
@@ -198,7 +199,7 @@ sub initPlugin {
     # with why. Read-only - unlike startmix/stopmix/replacenext this
     # dispatch itself never touches the queue.
     Slim::Control::Request::addDispatch(['randomflow', 'rejectedtracks'], [1, 0, 0, \&_handleRejectedTracks]);
-    # queuetrack - Henk, 25-09-2026: the "Afgewezen tracks" panel's own
+    # queuetrack - the "Afgewezen tracks" panel's own
     # "queue as next" button. '_trackid' is a positional param, exactly
     # SC-EXTMIP's own 'sugarcube replacesel _trackid' pattern (Plugin.pm/
     # scReplaceSelection there) - a numeric Track id, resolved to a URL
@@ -208,7 +209,7 @@ sub initPlugin {
     # gracefully ("no longer in the library") instead of half-matching a
     # stale URL.
     Slim::Control::Request::addDispatch(['randomflow', 'queuetrack', '_trackid'], [1, 0, 0, \&_handleQueueTrack]);
-    # historytracks - Henk, 25-09-2026: backs the Live page's "History"
+    # historytracks - backs the Live page's "History"
     # panel. Deliberately NOT scoped to this player's mix criteria the
     # way rejectedtracks is - see TrackSelector::findRecentlyPlayed's own
     # comment for why this is a genuine "what did I actually just
@@ -217,33 +218,28 @@ sub initPlugin {
     # queuetrack action above - a track id resolves to a URL to queue
     # the same way regardless of which panel it came from.
     Slim::Control::Request::addDispatch(['randomflow', 'historytracks'], [1, 0, 0, \&_handleHistoryTracks]);
-    # trackstats - Henk, 25-09-2026, THIRD round: backs the new Now
-    # Playing/Up Next stat lines' "Last Played" field. Genre/rating/
-    # playcount all ride along on the page's own cometd status push
-    # (Lyrion's own g/R/O track tags) - lastPlayed has no tag at all
-    # (confirmed against the real LMS source, see TrackSelector::
-    # lastPlayedForTracks' own comment), so it needs this own small
-    # lookup instead. '_trackids' is a comma-separated string, not a
-    # single positional id like '_trackid' elsewhere - this is called
-    # with one or two ids at once (current + next track).
+    # trackstats - backs the Now Playing/Up Next stat lines' "Last
+    # Played" field. Genre/rating/playcount all ride along on the page's
+    # own cometd status push (Lyrion's own g/R/O track tags) - lastPlayed
+    # has no tag at all (confirmed against the real LMS source, see
+    # TrackSelector::lastPlayedForTracks' own comment), so it needs this
+    # own small lookup instead. '_trackids' is a comma-separated string,
+    # not a single positional id like '_trackid' elsewhere - this is
+    # called with one or two ids at once (current + next track).
     Slim::Control::Request::addDispatch(['randomflow', 'trackstats', '_trackids'], [1, 0, 0, \&_handleTrackStats]);
     # mixsettings/setfilter/setwobble/setmaxplaycount/setartistcooldown/
-    # setalbumcooldown - Henk, 25-09-2026: back the Live page's "Mix
-    # Settings" section. Started with just the filter switcher (same
-    # round); THIRD round (Henk: "ratings hoeft er niet bij, de rest mag
-    # je bouwen") adds Wobble, Max Playcount, Artist Cooldown and Album
-    # Cooldown - the rest of the 25-09-2026 "good candidates" list except
-    # exclude-ratings, which Henk explicitly said to skip.
+    # setalbumcooldown - back the Live page's "Mix Settings" section:
+    # filter switcher, Wobble, Max Playcount, Artist Cooldown and Album
+    # Cooldown. Exclude-ratings is deliberately not offered here.
     #
-    # mixsettings() is read-only - was 'filters' (read-only, filters +
-    # activeFilterId only) until this round, renamed since it now returns
-    # this whole section's initial state in one call: the global
-    # genreFilters list (id/name only, same shape Settings/Player.pm's
-    # own dropdown uses), plus this player's current activeFilterId,
-    # wobble, maxPlaycount, artistCooldownTracks and albumCooldownTracks -
-    # the exact same per-player prefs Settings/Player.pm's own sliders
-    # read/write (see that page's own DEFAULTS/@SCALAR_PREFS for the
-    # underlying pref names and default values this mirrors).
+    # mixsettings() is read-only and returns this whole section's
+    # initial state in one call: the global genreFilters list (id/name
+    # only, same shape Settings/Player.pm's own dropdown uses), plus
+    # this player's current activeFilterId, wobble, maxPlaycount,
+    # artistCooldownTracks and albumCooldownTracks - the exact same
+    # per-player prefs Settings/Player.pm's own sliders read/write (see
+    # that page's own DEFAULTS/@SCALAR_PREFS for the underlying pref
+    # names and default values this mirrors).
     #
     # Each setX() action saves ONE of those prefs and, same as
     # setfilter() does (see _handleSetFilter's own comment for the full
@@ -266,18 +262,16 @@ sub initPlugin {
     Slim::Control::Request::addDispatch(['randomflow', 'setartistcooldown', '_value'], [1, 0, 0, \&_handleSetArtistCooldown]);
     Slim::Control::Request::addDispatch(['randomflow', 'setalbumcooldown', '_value'], [1, 0, 0, \&_handleSetAlbumCooldown]);
 
-    # Auto Mix <-> DSTM clash - no longer auto-resolved (removed 30-09-2026,
-    # Henk: caused a real race, DSTM's own check consistently beat Auto
-    # Mix's own top-up timer whenever DSTM was set to a RandomFlow provider).
-    # The Live page's Auto Mix info popover now just warns that the two
-    # shouldn't both be active for the same player - the user picks one.
+    # Auto Mix <-> DSTM clash - not auto-resolved: DSTM's own check
+    # consistently beat Auto Mix's own top-up timer whenever DSTM was set
+    # to a RandomFlow provider, causing a real race. The Live page's Auto
+    # Mix info popover just warns that the two shouldn't both be active
+    # for the same player - the user picks one.
 
     Plugins::RandomFlow::MixRunner::init();
 
-    # Alarm support (Henk, 20-09-2026 - uses SugarCube's alarm option as
-    # his actual wake-up alarm today, wants the same here). Same
-    # mechanism as SugarCube: register a placeholder URL scheme with
-    # Lyrion's native Alarm Clock, then intercept it in
+    # Alarm support. Same mechanism as SugarCube: register a placeholder
+    # URL scheme with Lyrion's native Alarm Clock, then intercept it in
     # ProtocolHandler::overridePlayback and hand off to MixRunner's own
     # startMix - see ProtocolHandler.pm's header for the full chain.
     Slim::Player::ProtocolHandlers->registerHandler(
@@ -287,10 +281,10 @@ sub initPlugin {
     # This self-test used to log at ERROR level, which shows regardless
     # of this category's configured log level - meaning it printed on
     # every single plugin load/server restart whether anyone wanted it
-    # or not. Since 24-09-2026 (Henk's request) it only logs (now at
-    # DEBUG level) AND only runs at all when this category's log level
-    # is actually set to Debug - no wasted diagnostic DB queries on a
-    # normal startup either, not just a quieter log.
+    # or not. It now logs at DEBUG level and only runs at all when this
+    # category's log level is actually set to Debug - no wasted
+    # diagnostic DB queries on a normal startup either, not just a
+    # quieter log.
     if ($log->is_debug) {
         Slim::Utils::Timers::setTimer(undef, Time::HiRes::time() + 5, \&_runTest);
     }
@@ -298,8 +292,8 @@ sub initPlugin {
     return 1;
 }
 
-# Registers RandomFlow as a selectable "Don't Stop The Music" provider
-# (Henk, 30-09-2026) - a second, independent entry point into the same
+# Registers RandomFlow as a selectable "Don't Stop The Music" provider -
+# a second, independent entry point into the same
 # picks Start Mix/Auto Mix already use, for players that prefer DSTM's
 # own on/off switch. Runs in postinitPlugin (after every plugin's own
 # initPlugin has completed) and only registers if DSTM itself is
@@ -333,7 +327,7 @@ sub getAlarmPlaylists {
     # (only the unprefixed 'RANDOMFLOW' is) - cstring() silently
     # returns undef for an unknown token (no error, no fallback text),
     # which is almost certainly why the whole group failed to show up
-    # in Henk's alarm sound list at all (20-09-2026).
+    # in the alarm sound list at all.
     Slim::Utils::Alarm->addPlaylists(
         'RANDOMFLOW',
         [
@@ -573,7 +567,7 @@ sub _handleRejectedTracks {
     # uses (Slim::Schema->find('Track', $id)), which degrades gracefully
     # ("no longer in library") if a rescan happened between listing and
     # clicking, rather than trying to re-match a raw URL string. coverId
-    # (25-09-2026, Henk's request) may legitimately come back undef - see
+    # may legitimately come back undef - see
     # TrackSelector::findRejectedTracks' own comment on why - live.html
     # already knows how to show a plain placeholder for that, same as it
     # already does for the Queue panel's own rows.
@@ -690,12 +684,12 @@ sub _handleMixSettings {
 
     $request->addResult('filters', \@filterList);
     $request->addResult('activeFilterId', $clientPrefs->get('activeFilterId') || '');
-    # Album Mix mode (Henk, 29-09-2026) - read once at page load, same as
+    # Album Mix mode - read once at page load, same as
     # the rest of this call's fields; live.html uses it to hide the
     # Songs-only Start Batch/Top Up buttons and switch Replace Track's
     # behaviour, see MixRunner.pm's own design notes.
     $request->addResult('mixMode', $clientPrefs->get('mixMode') || 'songs');
-    # mixRunning ("Auto Mix": Henk, 26-09-2026) is stored on the sync-group
+    # mixRunning ("Auto Mix") is stored on the sync-group
     # MASTER, not necessarily this exact player (see MixRunner.pm's own
     # startMix/stopMix comment on why) - read it from there, same as the
     # new Auto Mix<->DSTM watcher in initPlugin does, so a synced slave's
@@ -744,9 +738,8 @@ sub _handleSetFilter {
 
     $prefs->client($client)->set('activeFilterId', $filterId);
 
-    # Henk, 25-09-2026, second round: switching filters on the Live page
-    # should feel immediate - "ik wissel nu, dus de volgende track moet
-    # ook meteen kloppen" - not wait for the ALREADY-queued upcoming
+    # Switching filters on the Live page
+    # should feel immediate, not wait for the ALREADY-queued upcoming
     # track (picked under the OLD filter before this call) to finish
     # playing first. Reuses the exact same replaceNext() MixRunner
     # already uses for the "Replace Track" button - it re-reads
@@ -907,8 +900,8 @@ sub _runTest {
     $log->debug("RandomFlow: TEST 2 (soft weighting) - using artist '$testArtist' as the preferred artist.");
 
     my $weightedCount = _countArtistOverRuns($testArtist, 10, 20);
-    # weight 0 -> multiplier 0+1 = 1 = truly neutral, since 24-09-2026's
-    # SugarCube-matching (weight+1) formula - weight 1 is no longer a
+    # weight 0 -> multiplier 0+1 = 1 = truly neutral, under the
+    # SugarCube-matching (weight+1) formula - weight 1 is not a
     # no-op (it's already ~2x), see _countArtistOverRuns's own comment.
     my $controlCount  = _countArtistOverRuns($testArtist, 0, 20);
 
@@ -966,9 +959,9 @@ sub _sameSet {
 }
 
 # TEST 4 used to check three Style/genreStrictness variants (Strict/50/0).
-# Style was removed 20-09-2026 - Henk confirmed genre must ALWAYS be a
-# hard filter, no soft mode - so this now just confirms that's still
-# true: a narrow genre selection should never leak a track from outside it.
+# Genre is now always a hard filter, with no soft mode, so this just
+# confirms that: a narrow genre selection should never leak a track from
+# outside it.
 sub _runGenreHardFilterTest {
     $log->debug("RandomFlow: TEST 4 (genre is always a hard filter) starting ...");
 
@@ -1042,10 +1035,9 @@ sub _runCooldownTest {
 
     my $dbh = Slim::Schema->dbh;
 
-    # DIAGNOSTIC (added 20-09-2026 after 'both' unexpectedly returned 0
-    # where 'apc' alone used to return 369): compare all three providers
-    # directly, so we can see exactly where the count drops to 0 instead
-    # of guessing at the SQL.
+    # DIAGNOSTIC: compare all three providers directly, so a drop to 0
+    # for 'both' can be traced to a specific provider instead of
+    # guessing at the SQL.
     for my $provider ('lyrion', 'apc', 'both') {
         my $recent = TrackSelector::_recentlyPlayedArtists($dbh, 30, $provider);
         $log->debug("RandomFlow: TEST 3 DIAGNOSTIC - provider='$provider': " . scalar(@$recent) . " artist(s) played in the last 30 days.");
@@ -1084,8 +1076,8 @@ sub _runCooldownTest {
     # this is a throwaway test harness, not production code, and it's
     # the most direct way to check the cooldown lookup itself works.
     #
-    # 200 tracks (not days, since the 24-09-2026 change) - an arbitrary
-    # but reasonable window for this diagnostic run.
+    # 200 tracks (not days) - an arbitrary but reasonable window for this
+    # diagnostic run.
     my $cooldownWindow = 200;
     my $recentN = TrackSelector::_recentlyPlayedArtists($dbh, $cooldownWindow, 'both');
     $log->debug("RandomFlow: TEST 3 - " . scalar(@$recentN) . " artist(s) among the last $cooldownWindow played tracks (provider=both).");
@@ -1173,9 +1165,9 @@ sub _countMatching {
 }
 
 # Runs selectTracks() $runs times, each picking exactly 1 track, with
-# $artist given $weight as preferredWeight. Since 24-09-2026 this uses
-# SugarCube's own (weight+1) multiplier - weight 0 = no preference (the
-# control run), weight 1 = ~2x as likely, weight 5 = ~6x as likely.
+# $artist given $weight as preferredWeight. Uses SugarCube's own
+# (weight+1) multiplier - weight 0 = no preference (the control run),
+# weight 1 = ~2x as likely, weight 5 = ~6x as likely.
 # Returns how many of those runs picked $artist.
 sub _countArtistOverRuns {
     my ($artist, $weight, $runs) = @_;

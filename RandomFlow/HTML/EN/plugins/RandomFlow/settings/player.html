@@ -2,13 +2,12 @@
 
 [% IF prefs %]
 
-	[%# Henk, 26-09-2026: the old Mix status/Start/Stop panel that used to  %]
-	[%# live here is gone - fully superseded by the Live page's own Auto   %]
-	[%# Mix toggle and Start New Mix button.                               %]
+	[%# The old Mix status/Start/Stop panel has been removed, fully superseded %]
+	[%# by the Live page's own Auto Mix toggle and Start New Mix button.       %]
 
-	[%# Henk, 29-09-2026: Mix Mode - Songs (unchanged) or Albums (Start    %]
-	[%# Mix/top-up queue whole albums instead of single tracks). Placed    %]
-	[%# first since it changes how several of the settings below behave.  %]
+	[%# Mix Mode - Songs (unchanged) or Albums (Start Mix/top-up queue whole  %]
+	[%# albums instead of single tracks). Placed first since it changes how  %]
+	[%# several of the settings below behave.                                %]
 	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_MIXMODE" desc="PLUGIN_RANDOMFLOW_MIXMODE_DESC" %]
 		<select class="stdedit" name="pref_mixMode" id="mixMode">
 			<option value="songs"[% IF prefs.pref_mixMode == "songs" %] selected[% END %]>[% "PLUGIN_RANDOMFLOW_MIXMODE_SONGS" | string %]</option>
@@ -79,10 +78,10 @@
 		<input type="text" class="stdedit sliderInput_0_5" name="pref_lessPreferredWeight" id="lessPreferredWeight" value="[% prefs.pref_lessPreferredWeight | html %]" size="5">
 	[% END %]
 
-	[%# Moved here from just under Mix Control (24-09-2026, Henk's request) - Wobble only  %]
-	[%# has any effect once a Preferred/Less Preferred artist weight is actually set (see  %]
-	[%# its own _DESC string), so it reads more clearly grouped with those two settings     %]
-	[%# than sitting on its own near the top of the page.                                   %]
+	[%# Grouped here with the Preferred/Less Preferred artist weight settings rather  %]
+	[%# than near the top of the page - Wobble only has any effect once one of those  %]
+	[%# weights is actually set (see its own _DESC string), so it reads more clearly  %]
+	[%# alongside them.                                                               %]
 	[% WRAPPER setting title="PLUGIN_RANDOMFLOW_WOBBLE" desc="PLUGIN_RANDOMFLOW_WOBBLE_DESC" %]
 		<input type="text" class="stdedit sliderInput_0_100" name="pref_wobble" id="wobble" value="[% prefs.pref_wobble | html %]" size="5">
 	[% END %]

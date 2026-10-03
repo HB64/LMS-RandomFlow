@@ -1,15 +1,18 @@
+<?xml version="1.0"?>
 <extension>
-	<details>
-		<title lang="EN">Random Flow</title>
-	</details>
+	<id>f8983111-709c-4e1d-b42a-79891e6b0db2</id>
 	<name>RANDOMFLOW</name>
-	<version>1.0</version>
-	<creator>Henk</creator>
-	<icon>plugins/RandomFlow/HTML/images/randomflow_svg.png</icon>
 	<module>Plugins::RandomFlow::Plugin</module>
+	<version>1.0</version>
+	<description>RANDOMFLOW_DESC</description>
+	<creator>HB64</creator>
+	<icon>plugins/RandomFlow/HTML/images/randomflow_svg.png</icon>
+	<homepageURL>https://github.com/HB64/LMS-RandomFlow</homepageURL>
+	<optionsURL>plugins/RandomFlow/settings/basic.html</optionsURL>
+	<defaultState>enabled</defaultState>
 	<targetApplication>
-		<id>Logitech Media Server</id>
-		<minVersion>7.9</minVersion>
+		<id>Lyrion Music Server</id>
 		<maxVersion>*</maxVersion>
+		<minVersion>7.9</minVersion>
 	</targetApplication>
 </extension>

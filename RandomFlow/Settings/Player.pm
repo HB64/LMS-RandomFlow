@@ -5,8 +5,8 @@ package Plugins::RandomFlow::Settings::Player;
 # selectTracks() accepts (see TrackSelector.pm's own criteria docs)
 # EXCEPT playCountProvider, which is global (Settings/Basic.pm).
 #
-# Genre selection itself is no longer done here directly - since
-# 20-09-2026 genres are grouped into named FILTERS managed globally
+# Genre selection itself is no longer done here directly - genres are
+# grouped into named FILTERS managed globally
 # (Settings/Basic.pm, like MusicIP's filters), and a player just picks
 # which filter it uses (activeFilterId) plus an optional quick
 # comma-separated genreBlock to exclude specific genres from whichever
@@ -51,7 +51,7 @@ my $prefs = preferences('plugin.randomflow');
 # any more - it's resolved at mix time from activeFilterId + genreBlock,
 # see the file header above.)
 my %DEFAULTS = (
-    mixMode              => 'songs',   # Henk, 29-09-2026: 'songs' (default, unchanged behaviour) or 'albums'
+    mixMode              => 'songs',   # 'songs' (default) or 'albums'
     activeFilterId       => '',
     genreBlock           => [],
     artistBlock          => [],
@@ -65,17 +65,16 @@ my %DEFAULTS = (
     albumCooldownTracks  => 0,
     wobble               => 0,
     poolSize             => 300,
-    batchSize            => 20,   # Henk, 28-09-2026: batch mode track count, clamped 10-100 (see handler())
+    batchSize            => 20,   # batch mode track count, clamped 10-100 (see handler())
 );
 
 # mixRunning ("Auto Mix") is deliberately NOT in %DEFAULTS above, and
-# never will be - Henk, 26-09-2026: it used to be there ("NOT a settings-
-# page field, just seeding a default"), which turned out to be exactly
-# what caused it to silently reset to disabled after every server
-# restart (init() is supposed to leave an already-set value alone, but
-# didn't for this one reliably across a restart - never fully root-
-# caused, but removing the default here entirely removes the only
-# mechanism that could be doing it). It's set by MixRunner::startMix/
+# never will be: seeding a default here previously caused it to
+# silently reset to disabled after every server restart (init() is
+# supposed to leave an already-set value alone, but didn't for this
+# one reliably across a restart - never fully root-caused, but
+# omitting the default here entirely removes the only mechanism that
+# could be doing it). It's set by MixRunner::startMix/
 # stopMix/setAutoMix via the randomflow startmix/stopmix/setautomix
 # JSON-RPC actions instead, and every place that reads it already
 # treats "never set" the same as "off" (get('mixRunning') is falsy when

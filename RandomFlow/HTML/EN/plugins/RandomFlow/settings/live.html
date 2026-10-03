@@ -2,8 +2,8 @@
 [%# Web.pm's own header comment for why step 1 started out diagnostic-     %]
 [%# only.                                                                  %]
 [%#                                                                        %]
-[%# THE 8-STEP PLAN (Henk approved, 24-09-2026), for full feature parity   %]
-[%# with SC-EXTMIP's own liveview.html, rebuilt on cometd instead of its   %]
+[%# THE 8-STEP PLAN, for full feature parity with SC-EXTMIP's own          %]
+[%# liveview.html, rebuilt on cometd instead of its                       %]
 [%# scLvRefresh interval polling:                                         %]
 [%#   1. DONE - cometd connection foundation                               %]
 [%#   2. DONE - now playing display (title/artist/album, play state,       %]
@@ -12,12 +12,11 @@
 [%#      page from here on, not a diagnostic dead-end. The diagnostic      %]
 [%#      raw-JSON/log sections from step 1 are kept below the "Now         %]
 [%#      playing" panel, not removed - still useful for debugging.         %]
-[%#   3. THIS CHANGE - cover art + color extraction. A FAITHFUL PORT, not  %]
+[%#   3. DONE - cover art + color extraction. A FAITHFUL PORT, not         %]
 [%#      a reinvention: scRgb2Hsv/scHsv2Rgb/scIsGrey/scUpdateCoverColor    %]
 [%#      below are copied from SC-EXTMIP's own liveview.html almost        %]
-[%#      verbatim. CORRECTION (Henk, 24-09-2026): the request behind it    %]
-[%#      was Henk's ("make SugarCube's own bar tint per-cover the way      %]
-[%#      Material's own UI already does") - the actual bucket/grey-        %]
+[%#      verbatim, to tint SugarCube's own bar per-cover the way           %]
+[%#      Material's own UI already does - the actual bucket/grey-          %]
 [%#      detection/HSV-normalization algorithm was designed and written    %]
 [%#      by Claude, in that earlier SugarCube session, after two failed    %]
 [%#      attempts documented right there in its own comment: a plain       %]
@@ -38,9 +37,9 @@
 [%#      for the queue listing, same row layout (art/title/artist/album+  %]
 [%#      year/duration/star rating/remove button). Deliberately no move/   %]
 [%#      reorder buttons on the rows - SC-EXTMIP itself dropped those      %]
-[%#      per an earlier Henk request ("mogen weg, alleen de verwijder      %]
-[%#      knop laten staan") and reordering is this plan's own step 5       %]
-[%#      anyway, so the two line up. ONE deliberate simplification from    %]
+[%#      too, keeping only the remove button, and reordering is this       %]
+[%#      plan's own step 5 anyway, so the two line up. ONE deliberate      %]
+[%#      simplification from                                               %]
 [%#      SC-EXTMIP's version: SugarCube must manually re-poll after every  %]
 [%#      transport command (scPlayerCmd's onloadend calls scLvRefresh()/   %]
 [%#      scUpdatePlayState() itself) because it has no live push of its    %]
@@ -51,8 +50,8 @@
 [%#      from steps 1-3 doesn't cover the whole queue listing, so the      %]
 [%#      queue panel still explicitly re-fetches itself after one, same    %]
 [%#      as SC-EXTMIP does.                                                %]
-[%#      TWO FIXES (Henk, 24-09-2026, both caught live testing this        %]
-[%#      step): (a) the queue's star rating used a literal Unicode         %]
+[%#      TWO FIXES caught live testing this step: (a) the queue's star     %]
+[%#      rating used a literal Unicode                                     %]
 [%#      character in the source, same class of file-encoding mismatch     %]
 [%#      SC-EXTMIP's own scStars comment already warned about (it dodges   %]
 [%#      that with a \u2605/\u2606 JS escape there) - switched to plain    %]
@@ -73,8 +72,8 @@
 [%# WHY COMETD INSTEAD OF POLLING: verified against Lyrion's own source    %]
 [%# (Slim::Control::Request::registerAutoExecute/notify) that a "status"   %]
 [%# query's "subscribe:N" re-fires on a real notification (play/pause/     %]
-[%# skip/queue change/...). CORRECTION (Henk, 24-09-2026, caught live on   %]
-[%# this very page): N is NOT just a debounce floor between those real     %]
+[%# skip/queue change/...). N is NOT just a debounce floor between those   %]
+[%# real                                                                   %]
 [%# re-fires - it's ALSO a forced-heartbeat ceiling, so with subscribe:1   %]
 [%# the server pushes a fresh status every single second regardless of    %]
 [%# whether anything changed (confirmed live: pushes kept arriving every   %]
@@ -103,9 +102,9 @@
 [%#      subscribe:30, not subscribe:1 - see the correction above.         %]
 [%#      tags:gald (genre/artist/album/duration) was already LMS's own     %]
 [%#      default when no tags param is given at all - spelled out          %]
-[%#      explicitly anyway (step 2, Henk 24-09-2026) so this doesn't       %]
-[%#      silently depend on that default never changing. Step 3 (Henk,     %]
-[%#      24-09-2026) adds c+K: c=coverid (local library tracks - build     %]
+[%#      explicitly anyway so this doesn't silently depend on that         %]
+[%#      default never changing. Step 3 adds c+K: c=coverid (local         %]
+[%#      library tracks - build                                           %]
 [%#      the artwork URL ourselves as webroot+"music/<coverid>/            %]
 [%#      cover_300x300_f.jpg, same URL shape SC-EXTMIP's own liveview.html %]
 [%#      uses), K=artwork_url (remote/radio tracks that hand back a full   %]
@@ -132,11 +131,10 @@
 [%# This step doesn't navigate anywhere, so it isn't exercised yet, but   %]
 [%# keep it in mind for step 2 onward.                                    %]
 [%#                                                                        %]
-[%# BACKGROUND/THEME FIX (Henk, 24-09-2026): this page used to be a fully  %]
-[%# standalone <!DOCTYPE html> document with a hardcoded prefers-color-    %]
-[%# scheme dark/light guess - I claimed that matched SC-EXTMIP's own      %]
-[%# Live View, twice, and Henk correctly called that out both times       %]
-[%# (screenshot comparison, then again directly). It didn't: SC-EXTMIP's  %]
+[%# BACKGROUND/THEME FIX: this page used to be a fully standalone          %]
+[%# <!DOCTYPE html> document with a hardcoded prefers-color-scheme         %]
+[%# dark/light guess, which did not actually match SC-EXTMIP's own        %]
+[%# Live View, confirmed by screenshot comparison. SC-EXTMIP's             %]
 [%# liveview.html uses var(--background-color,...)/var(--text-color,...)/ %]
 [%# var(--list-item-border-color,...) throughout - Material's OWN live    %]
 [%# theme variables - which it gets by calling PROCESS pageheader.html     %]
@@ -171,23 +169,21 @@
 [% PROCESS pageheader.html %]
 
 	<style>
-		[%# Henk, 25-09-2026: "de layout van Live moet net zo worden als    %]
-		[%# die van SC" - the progress bar + transport buttons are now      %]
-		[%# position:fixed at the bottom of the viewport, same as            %]
-		[%# SC-EXTMIP's own #scProgressTrack/transport bar, not inline in    %]
-		[%# the page flow like before. padding-bottom here clears those      %]
-		[%# fixed bars so the rest of the page content doesn't sit hidden    %]
-		[%# underneath them - same reasoning as SC-EXTMIP's own #sclvbody    %]
-		[%# padding-bottom. 25-09-2026, second round: +20px for the          %]
-		[%# elapsed/duration time row Henk asked to keep (see #tstNpTimes)   %]
-		[%# - transport (64) + time row (20) + progress bar (4) = 88px,      %]
-		[%# rounded up a bit for breathing room.                             %]
-		[%# Henk, 25-09-2026: "de queue knop mag verder naar boven" - top     %]
-		[%# padding was 1.5em, same as the sides/was-there-before the        %]
-		[%# h1/player-line/status badge got removed above it. With those     %]
-		[%# gone the row with the Queue button is now the very first thing   %]
-		[%# on the page, so it's tightened to 0.5em - as far up as this      %]
-		[%# stylesheet can pull it. Some of the remaining gap above it       %]
+		[%# Layout matches SC's own Live page: the progress bar + transport   %]
+		[%# buttons are now position:fixed at the bottom of the viewport,    %]
+		[%# same as SC-EXTMIP's own #scProgressTrack/transport bar, not      %]
+		[%# inline in the page flow like before. padding-bottom here clears  %]
+		[%# those fixed bars so the rest of the page content doesn't sit     %]
+		[%# hidden underneath them - same reasoning as SC-EXTMIP's own       %]
+		[%# #sclvbody padding-bottom. +20px accounts for the elapsed/        %]
+		[%# duration time row kept below (see #tstNpTimes) - transport (64)  %]
+		[%# + time row (20) + progress bar (4) = 88px, rounded up a bit for  %]
+		[%# breathing room.                                                  %]
+		[%# Top padding was 1.5em, same as the sides, from when there was    %]
+		[%# still an h1/player-line/status badge above this row. With those  %]
+		[%# removed the row with the Queue button is now the very first      %]
+		[%# thing on the page, so it's tightened to 0.5em - as far up as     %]
+		[%# this stylesheet can pull it. Some of the remaining gap above it  %]
 		[%# (between Material's own toolbar and this page's own content)     %]
 		[%# is Material's own dialog padding, not something in this          %]
 		[%# template's own markup - same "markup this plugin cannot see"     %]
@@ -197,35 +193,33 @@
 			font-family:Arial, Helvetica, sans-serif; padding:0.5em 1.5em 96px 1.5em;
 			background:var(--background-color, #fff); color:var(--text-color, #333);
 		}
-		[%# Henk, 25-09-2026: "status update en connection log mogen daar     %]
-		[%# weg en ook dat er verbinding is en welke speler het is" - the    %]
+		[%# The connection-status area is kept out of the visible page: the  %]
 		[%# <h1> page title, the "Player: ..." line and the connection      %]
 		[%# status badge are all gone from the visible page now (see the    %]
 		[%# body markup further down). Same reasoning SC-EXTMIP's own       %]
 		[%# comment gives for dropping ITS OWN repeated "SC Live View" row  %]
-		[%# (08-2026): Material's own toolbar already reads "Live - SB      %]
+		[%# : Material's own toolbar already reads "Live - SB              %]
 		[%# Boom Links" for this page, so a page title/player-name line     %]
 		[%# underneath it was always just repeating what's already shown    %]
 		[%# above it. #tstTopRow now holds only the Queue icon button,       %]
 		[%# right-aligned (flex-end, not space-between - there's nothing    %]
 		[%# on the left to space it away from any more).                   %]
-		[%# Henk, 25-09-2026, step 7 (menu system) - justify-content         %]
-		[%# changed from flex-end to space-between: this row now holds a    %]
-		[%# menu button on the LEFT (matching SC-EXTMIP's own sclvMenuBtn   %]
-		[%# position - "deliberately NOT top-right", its own comment says, %]
-		[%# "which is reserved for symmetry with the hoezen") as well as   %]
+		[%# Step 7 (menu system) - justify-content changed from flex-end    %]
+		[%# to space-between: this row now holds a menu button on the LEFT  %]
+		[%# (matching SC-EXTMIP's own sclvMenuBtn position - deliberately   %]
+		[%# NOT top-right, which its own comment reserves for symmetry      %]
+		[%# with the covers) as well as                                    %]
 		[%# the Queue button, which stays on the right exactly where it    %]
 		[%# already was.                                                   %]
-		[%# Henk, 26-09-2026: "is dat de plek waar SC hem ook heeft?" -    %]
-		[%# no, SC keeps its own Chain Enabled/Disabled status ALWAYS      %]
+		[%# Chain Enabled/Disabled status placement matches where SC keeps %]
+		[%# its own: SC keeps its own Chain Enabled/Disabled status ALWAYS %]
 		[%# visible in this top row (lamp/label/select/info, between the   %]
 		[%# menu and queue buttons), never inside its collapsible Chain/   %]
 		[%# Mix Settings panel - so collapsing that panel never hides      %]
 		[%# whether Chain is on. Auto Mix moved here to match, out of      %]
 		[%# #tstMixSettings. Switched from flex to CSS GRID (auto 1fr      %]
-		[%# auto) for the same reason SC-EXTMIP's own liveview.html did    %]
-		[%# (its own CSS comment, 2026-09-12): "na een cache leging" in    %]
-		[%# Material's own app wrapper, a flex:1 middle column did not     %]
+		[%# auto) for the same reason SC-EXTMIP's own liveview.html did:   %]
+		[%# in Material's own app wrapper, a flex:1 middle column did not   %]
 		[%# actually claim the remaining row width - both icon buttons     %]
 		[%# ended up bunched at the left instead of the middle column      %]
 		[%# centering between them. Grid track sizing is a separate        %]
@@ -249,8 +243,8 @@
 		}
 		.tstMenuDropdown a { display:block; padding:12px 14px; font-weight:bold; color:inherit; text-decoration:none; }
 		.tstMenuDropdown a:hover, .tstMenuDropdown a:active { background:rgba(128,128,128,0.15); }
-		[%# Henk, 25-09-2026, second round: "Queue is een mooi klein menu, kan  %]
-		[%# Rejected Tracks ook zo?" - .tstPanel used to be a full-height        %]
+		[%# Rejected Tracks uses the same small-menu treatment as Queue -         %]
+		[%# .tstPanel used to be a full-height                                   %]
 		[%# left:0/right:0/top:0/bottom:88px overlay (see the removed comment    %]
 		[%# above this rule in earlier revisions). Now a small floating card,    %]
 		[%# same #tstQueuePanel convention: position:fixed with NO left/right/   %]
@@ -277,10 +271,9 @@
 		[%# SC-EXTMIP's own MIP Response table: that table shows the        %]
 		[%# surviving CANDIDATE POOL with cover art via a heavy rowspan     %]
 		[%# <table> built server-side in Breakout.pm - a different feature  %]
-		[%# entirely (Henk corrected this distinction 25-09-2026, see the   %]
-		[%# design discussion: this panel shows tracks EXCLUDED by a soft   %]
+		[%# entirely: this panel shows tracks EXCLUDED by a soft             %]
 		[%# criterion, with why, nothing SC-EXTMIP itself has). The one     %]
-		[%# piece Henk specifically asked to match SC-EXTMIP for is the     %]
+		[%# piece matched to SC-EXTMIP is the                               %]
 		[%# "queue this instead" icon - .tstRejBtn's svg below is SC-       %]
 		[%# EXTMIP's own .sc-mipbtn triangle+queue-bars icon (Breakout.pm's %]
 		[%# StatsPuller, "Use as Next"), copied path-for-path.              %]
@@ -289,7 +282,7 @@
 			border-bottom:1px solid var(--list-item-border-color, rgba(128,128,128,0.25));
 		}
 		.tstRejRow:last-child { border-bottom:none; }
-		[%# Henk, 25-09-2026 - "een hoesje er bij zou mooi zijn". Same exact %]
+		[%# Cover art added here too. Same exact                            %]
 		[%# .tstQueueArt/.tstQueueArtPlaceholder pair the Queue panel above  %]
 		[%# already uses (44px, rounded, grey placeholder box when there's   %]
 		[%# no art) - reused here rather than a new size/shape, purely for   %]
@@ -308,7 +301,7 @@
 		.tstRejBtn:hover { opacity:1 !important; }
 		#tstRejEmpty, #tstRejLoading { padding:12px; opacity:0.7; }
 		#tstRejMore { padding:10px 12px; opacity:0.7; font-size:0.85em; }
-		[%# History panel rows (Henk, 25-09-2026, second round). Same row      %]
+		[%# History panel rows. Same row      %]
 		[%# skeleton as .tstRejRow above (art/text/button), reusing the SAME    %]
 		[%# .tstRejBtn "queue as next" icon button class too - it's the same   %]
 		[%# action either panel's button triggers. One extra sub-line here     %]
@@ -330,7 +323,7 @@
 		.tstHistStars { white-space:nowrap; margin-top:2px; }
 		#tstHistEmpty, #tstHistLoading { padding:12px; opacity:0.7; }
 		#tstHistMore { padding:10px 12px; opacity:0.7; font-size:0.85em; }
-		[%# Henk, 25-09-2026: same icon-button convention SC-EXTMIP's own    %]
+		[%# Same icon-button convention SC-EXTMIP's own    %]
 		[%# .sc-livebtn-icon uses (transparent, var(--text-color), no        %]
 		[%# border, !important throughout for the same Vuetify-fight reason  %]
 		[%# as .tstTransportBtn above) - used for the Queue button here and  %]
@@ -353,9 +346,10 @@
 		.tstWarn { background:#6b5a12; color:#ffe9a8; }
 		.tstErr  { background:#6b1f1f; color:#ffc9c9; }
 		h2 { font-size:1em; margin-top:1.5em; margin-bottom:0.3em; }
-		[%# Mix Settings collapsible - Henk, 26-09-2026: "ik kan niet         %]
-		[%# scrollen naar de onderste opties van de mix settings... in SC    %]
-		[%# kan het settings gedeelte in/uitklapbaar, en onthoud de status". %]
+		[%# Mix Settings collapsible - lets the section be collapsed out of  %]
+		[%# the way instead of always needing to be scrolled past, with its %]
+		[%# open/closed state remembered, matching how SC's own settings     %]
+		[%# panel behaves.                                                  %]
 		[%# Ported from SC-EXTMIP's own <details id="sclvChainSettings">     %]
 		[%# (its own liveview.html) - same element, same open/closed         %]
         [%# persistence approach (see tstDetailsToggle/tstApplyDetailsState  %]
@@ -369,37 +363,29 @@
 			font-size:1em; font-weight:bold; margin-top:1.5em; margin-bottom:0.3em;
 			cursor:pointer; list-style-position:outside;
 		}
-		[%# Henk, 25-09-2026: the new "Mix Settings" section at the bottom  %]
-		[%# of the page (in normal page flow, scrolls with the rest of the  %]
-		[%# content - not position:fixed like the transport bar) - started   %]
-		[%# with just the filter switcher, THIRD round (Henk: "ratings      %]
-		[%# hoeft er niet bij, de rest mag je bouwen") adds Wobble/Max      %]
-		[%# Playcount/Artist Cooldown/Album Cooldown as real <input         %]
-		[%# type="range"> sliders (Henk asked specifically whether any      %]
-		[%# sliders existed yet - Settings/Player.pm's own                 %]
-		[%# sliderInput_0_100 class is a Material-skin-only JS widget this  %]
-		[%# plain custom page doesn't have access to, so these are genuine  %]
-		[%# native sliders instead; Max Playcount too, FOURTH round, Henk - %]
-		[%# "Playcount ook graag een slider, mits dat niet mogelijk is" -   %]
-		[%# see that slider's own markup comment for how a field with no   %]
-		[%# natural fixed max still becomes one). FOURTH round also:       %]
-		[%# sliders now stretch as wide as the page allows (Henk: "zouden  %]
-		[%# de sliders wel pagina breed mogen of zo breed als mogelijk is  %]
-		[%# in een browser") instead of the original fixed 200px cap, and  %]
-		[%# touch-action:none below stops a touchscreen's native "tap sets %]
-		[%# the value" jump (Henk: "ik hoef ook maar iets de slider aan te %]
-		[%# raken en hij verspringt") - see the touchstart/touchmove/      %]
-		[%# touchend handlers near the bottom of this script for the real  %]
-		[%# fix, ported near-verbatim from SC-EXTMIP's own liveview.html   %]
-		[%# (Henk pointed at it directly - "dat is in SC ook aangepakt"),  %]
-		[%# which went through three failed attempts before landing on     %]
-		[%# this one - see that page's own comment for the full history    %]
-		[%# of why the simpler approaches didn't hold up. Deliberately     %]
-		[%# plain/minimal styling otherwise, same var(--...) convention as %]
-		[%# the rest of this page (#tstJson/#tstLog above).                %]
+		[%# The "Mix Settings" section at the bottom of the page (in normal  %]
+		[%# page flow, scrolls with the rest of the content - not           %]
+		[%# position:fixed like the transport bar) started with just the    %]
+		[%# filter switcher, then added Wobble/Max Playcount/Artist         %]
+		[%# Cooldown/Album Cooldown as real <input type="range"> sliders -  %]
+		[%# Settings/Player.pm's own sliderInput_0_100 class is a           %]
+		[%# Material-skin-only JS widget this plain custom page doesn't     %]
+		[%# have access to, so these are genuine native sliders instead,    %]
+		[%# including Max Playcount (see that slider's own markup comment   %]
+		[%# for how a field with no natural fixed max still becomes one).   %]
+		[%# Sliders stretch as wide as the page allows instead of the       %]
+		[%# original fixed 200px cap, and touch-action:none below stops a   %]
+		[%# touchscreen's native "tap sets the value" jump - see the        %]
+		[%# touchstart/touchmove/touchend handlers near the bottom of this  %]
+		[%# script for the real fix, ported near-verbatim from SC-EXTMIP's  %]
+		[%# own liveview.html, which went through three failed attempts     %]
+		[%# before landing on this one - see that page's own comment for    %]
+		[%# the full history of why the simpler approaches didn't hold up.  %]
+		[%# Deliberately plain/minimal styling otherwise, same var(--...)   %]
+		[%# convention as the rest of this page (#tstJson/#tstLog above).   %]
 		.tstSettingRow { display:flex; align-items:center; gap:10px; margin:0.6em 0; }
-		[%# Henk, 25-09-2026, FIFTH round: "Sliders wel graag uitlijnen op %]
-		[%# links!" - a fixed width here (not just min-width) is the fix. %]
+		[%# Sliders align left: a fixed width here (not just min-width) is %]
+		[%# the fix.                                                      %]
 		[%# min-width let each label grow to fit its own text, so a short %]
 		[%# label like "Wobble" left its control starting further left   %]
 		[%# than a long one like "Artist Cooldown"/"Album Cooldown" -     %]
@@ -416,7 +402,7 @@
 		}
 		[%# flex:1 alone already stretches each slider to fill the row     %]
 		[%# (page width minus the label/value columns) - no max-width cap  %]
-		[%# any more (Henk, FOURTH round, see this section's own top       %]
+		[%# any more (see this section's own top                           %]
 		[%# comment). touch-action:none is load-bearing, not decoration -  %]
 		[%# it's what lets the touchstart handler below block the         %]
 		[%# browser's native tap-to-jump without the browser also fighting %]
@@ -425,8 +411,8 @@
 		[%# failed on SC-EXTMIP first).                                   %]
 		.tstSettingRow input[type="range"] { flex:1; touch-action:none; }
 		.tstSettingValue { flex:none; min-width:60px; text-align:right; opacity:0.85; font-size:0.9em; }
-		[%# Info-icon/popover widget for the new Auto Mix row below - Henk, %]
-		[%# 26-09-2026, ported from SC-EXTMIP's own sc-info-wrap/sc-info-  %]
+		[%# Info-icon/popover widget for the Auto Mix row below, ported     %]
+		[%# from SC-EXTMIP's own sc-info-wrap/sc-info-                     %]
 		[%# icon/sc-info-popover (its liveview.html/player.html/          %]
 		[%# quicksettings.html, scToggleInfo) since this page had no info- %]
 		[%# popover widget of its own yet. Same open/close mechanism and   %]
@@ -453,16 +439,15 @@
 			padding:0.75em; white-space:pre-wrap; word-break:break-word;
 			max-height:16em; overflow-y:auto;
 		}
-		[%# Henk, 26-09-2026: the window.addEventListener('error', ...)     %]
-		[%# diagnostic added for the scroll-bug investigation was writing   %]
-		[%# into #tstLog above - but that whole block has been              %]
-		[%# display:none since 25-09-2026 (Henk: "status update en          %]
-		[%# connection log mogen daar weg"), so nothing it wrote there was  %]
-		[%# ever actually visible to Henk on his phone/tablet - the exact   %]
+		[%# The window.addEventListener('error', ...) diagnostic added for   %]
+		[%# the scroll-bug investigation was writing into #tstLog above -   %]
+		[%# but that whole block has been display:none since the           %]
+		[%# connection log was hidden from the page, so nothing it wrote    %]
+		[%# there was ever actually visible on a real device - the exact    %]
 		[%# problem it was supposed to solve. This small banner is the fix: %]
 		[%# it stays out of the way (no space taken, nothing shown) unless  %]
 		[%# an error actually happens, unlike the old always-on connection  %]
-		[%# log Henk asked to hide - so it doesn't reintroduce that clutter. %]
+		[%# log, which stays hidden so it doesn't reintroduce that clutter. %]
 		#tstJsErrorBanner {
 			display:none; position:sticky; top:0; z-index:50; margin-bottom:0.5em;
 			background:#f04747; color:#fff; padding:0.6em 0.9em; border-radius:4px;
@@ -472,27 +457,27 @@
 			background:none; border:1px solid #fff; color:#fff; border-radius:12px;
 			padding:2px 10px; cursor:pointer; float:right; margin-left:8px;
 		}
-		[%# Step 2: the "Now playing" panel. Step 3 (Henk, 24-09-2026)     %]
-		[%# adds the cover art image + the progress bar's per-track color  %]
+		[%# Step 2: the "Now playing" panel. Step 3 adds the cover art      %]
+		[%# image + the progress bar's per-track color                     %]
 		[%# tint - see scUpdateCoverColor further down. It does NOT re-    %]
 		[%# theme the rest of the page (body background/text stay as      %]
 		[%# they were) - matches what SugarCube's own Live View actually   %]
 		[%# does, confirmed by reading its source rather than assuming.    %]
-		[%# 25-09-2026: Henk pointed out "Coming Up Next" (SC-EXTMIP's     %]
+		[%# "Coming Up Next" (SC-EXTMIP's                                  %]
 		[%# own sclv-curnext-row - Currently Playing/Coming Up Next side   %]
 		[%# by side, each with its own icon button underneath) was         %]
 		[%# missing entirely, not just styled differently - added below,   %]
 		[%# same flex-row/flex-column structure as SC-EXTMIP's own.        %]
 		#tstCurNextRow { display:flex; gap:24px; flex-wrap:wrap; margin:1.5em 0; }
 		.tstCurNextCol { flex:1; min-width:220px; }
-		[%# Henk, 28-09-2026: matched 1:1 to SC-EXTMIP's own liveview.html   %]
-		[%# (regel ~1375) - de knoppenrij is EEN width:100px box, exact zo   %]
-		[%# breed als het hoesje zelf (#tstNpCover/#tstNpNextCover, ook      %]
-		[%# 100px), met beide knoppen er rechtstreeks in en gecentreerd.     %]
-		[%# Voorheen had elke knop zijn eigen width:100px wrap (.tstCurNext- %]
-		[%# BtnWrap, uit de tijd dat er nog maar 1 knop per rij was) - met   %]
-		[%# twee knoppen naast elkaar werd de hele rij zo 212px breed en     %]
-		[%# liep voorbij de rand van het hoesje het tekstgebied in.          %]
+		[%# Matched 1:1 to SC-EXTMIP's own liveview.html - the button row     %]
+		[%# is ONE width:100px box, exactly as wide as the cover itself      %]
+		[%# (#tstNpCover/#tstNpNextCover, also 100px), with both buttons     %]
+		[%# placed directly inside it and centered. Previously each button   %]
+		[%# had its own width:100px wrap (.tstCurNextBtnWrap, left over      %]
+		[%# from when there was only one button per row) - with two buttons  %]
+		[%# side by side the whole row became 212px wide and ran past the    %]
+		[%# edge of the cover into the text area.                           %]
 		.tstCurNextBtnRow { margin-top:8px; display:flex; align-items:center; justify-content:center; gap:16px; width:100px; }
 		#tstNowPlaying, #tstNextPlaying { display:flex; align-items:flex-start; gap:1em; }
 		#tstNpCover, #tstNpNextCover {
@@ -503,8 +488,8 @@
 		#tstNpTitle, #tstNpNextTitle   { font-size:1.4em; font-weight:bold; }
 		#tstNpArtist, #tstNpNextArtist { font-size:1.1em; opacity:0.75; }
 		#tstNpAlbum, #tstNpNextAlbum   { font-size:0.95em; opacity:0.6; }
-		[%# Henk, 25-09-2026, THIRD round: "het uitgebreidere tekstveld met    %]
-		[%# ratings, last played e.d. zoals bij SC" - ported directly from     %]
+		[%# The expanded text block (ratings, last played, etc., matching SC) %]
+		[%# is ported directly from                                          %]
 		[%# SC-EXTMIP's own sclv-curnext-row markup: Genre always shown       %]
 		[%# (same as artist/album above), Rating/Playcount/Last Played as     %]
 		[%# their own .tstStatLine rows - same class SC-EXTMIP's own          %]
@@ -516,7 +501,7 @@
 		[%# SC's own plain "Rating: N" text - visual consistency with the     %]
 		[%# rest of THIS page beats a literal port here, same tradeoff        %]
 		[%# already made for the Queue panel's own rating column.             %]
-		[%# Henk, 25-09-2026: min-height keeps each line's own vertical      %]
+		[%# min-height keeps each line's own vertical      %]
 		[%# space reserved even when it has no content (Genre/Playcount/    %]
 		[%# Last Played all render as an empty string when the data isn't   %]
 		[%# there) - otherwise an empty line collapses to 0px and the       %]
@@ -528,8 +513,7 @@
 		@media (max-width:480px) {
 			.tstStatLine { display:none !important; }
 		}
-		[%# Henk, 25-09-2026: "waarom is Now Playing in hoofdletters" /       %]
-		[%# "en STOPPED ook trouwens" - text-transform:uppercase +          %]
+		[%# text-transform:uppercase +                                      %]
 		[%# letter-spacing used to turn whatever MODE_LABEL text into a     %]
 		[%# shouty all-caps badge (NOW PLAYING/PAUSED/STOPPED), which       %]
 		[%# also read inconsistently next to #tstNpNextLabel's own plain    %]
@@ -537,8 +521,8 @@
 		[%# that label now (they share one rule below), whatever           %]
 		[%# MODE_LABEL actually says is shown as typed, no transform.       %]
 		#tstNpState, #tstNpNextLabel { font-size:0.8em; opacity:0.6; margin-bottom:0.4em; }
-		[%# Henk, 25-09-2026 - "de layout van Live moet net zo worden als     %]
-		[%# die van SC". SC-EXTMIP's own progress bar/transport bar are NOT   %]
+		[%# Layout matches SC's own: SC-EXTMIP's own progress bar/transport   %]
+		[%# bar are NOT                                                      %]
 		[%# inline in the page - they're position:fixed at the very bottom   %]
 		[%# of the viewport, always visible regardless of scroll, same as    %]
 		[%# Material's own bottom player bar. Moved both out of #tstNowPlaying%]
@@ -548,9 +532,9 @@
 		[%# where they now sit in the DOM (position doesn't matter for a     %]
 		[%# position:fixed element, kept near the end of the page content,   %]
 		[%# same as SC-EXTMIP's own placement).                              %]
-		[%# Henk, 25-09-2026, THIRD round: "kan de voortgangsbalk net zo als %]
-		[%# Material, tijd links en rechts van de balk" - #tstNpProgressTrack %]
-		[%# used to be its own fixed strip above a separate #tstNpTimes row    %]
+		[%# Progress bar now matches Material's own layout, with elapsed/    %]
+		[%# duration time on either side of the bar - #tstNpProgressTrack    %]
+		[%# used to be its own fixed strip above a separate #tstNpTimes row  %]
 		[%# (see the removed comment above for that layout's own reasoning).   %]
 		[%# Merged into one row now: #tstNpTimes is the single fixed element,  %]
 		[%# same bottom/height footprint as the old two-piece stack combined   %]
@@ -578,7 +562,7 @@
 			height:100%; width:0%; background:var(--text-color, #e0e0e0); border-radius:0;
 			transition:width 0.9s linear;
 		}
-		[%# Henk, 24-09-2026, FOURTH round - stop reinventing this, copy      %]
+		[%# Rather than reinventing this, copy                               %]
 		[%# SC-EXTMIP's own transport bar CSS/markup as directly as          %]
 		[%# possible instead of a "port" with our own naming/tweaks. Three   %]
 		[%# earlier attempts all failed the same way (icon wrong size and/   %]
@@ -601,7 +585,7 @@
 		[%# Circle size (44px) and icon size (30px prev/next, 26px play/     %]
 		[%# pause) are SC-EXTMIP's own numbers, already matched to           %]
 		[%# Material's real bar there - no need to re-measure our own.       %]
-		[%# 25-09-2026: bar itself is now position:fixed (bottom:0, 64px     %]
+		[%# The bar itself is position:fixed (bottom:0, 64px                 %]
 		[%# tall, background/border-top from var(--background-color)/        %]
 		[%# var(--list-item-border-color)) - same fixed-bottom structure as  %]
 		[%# SC-EXTMIP's own, not inline in the page flow anymore. The Queue  %]
@@ -637,8 +621,8 @@
 			height:44px !important;
 			opacity:1 !important;
 		}
-		[%# Henk, 25-09-2026 - "waarom opent de queue knop niet direct       %]
-		[%# onder de knop zoals in SC": this used to be a plain block       %]
+		[%# The queue panel now opens directly under its toggle button,     %]
+		[%# matching SC: this used to be a plain block                     %]
 		[%# element sitting in the normal page flow, wherever that         %]
 		[%# happened to fall (below the Start Mix button) - no connection  %]
 		[%# to the toggle button's own position at all, unlike SC-EXTMIP's %]
@@ -649,8 +633,8 @@
 		[%# button's own getBoundingClientRect() every time it opens,      %]
 		[%# same as scQueueToggle does, so it tracks the button wherever   %]
 		[%# it actually sits on screen rather than a guessed constant.     %]
-		[%# 25-09-2026, second round: "op een telefoon zit de queue links  %]
-		[%# buiten beeld en rechts is nog ruimte over" - the width:min(94vw%]
+		[%# BUG FIX: on a phone the queue panel sat partly off-screen on     %]
+		[%# the left with unused space on the right - the width:min(94vw    %]
 		[%# ...) here was the bug. vw units resolve against the LAYOUT      %]
 		[%# viewport, which inside Material's own embedded webview/app     %]
 		[%# shell can be wider than what's actually visible on screen - so  %]
@@ -682,7 +666,7 @@
 		.tstQueueSub { font-size:0.85em; opacity:0.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 		.tstQueueMeta { flex:none; text-align:right; font-size:0.85em; opacity:0.75; }
 		.tstQueueStars { white-space:nowrap; }
-		[%# Henk, 24-09-2026: dots now use currentColor at partial opacity   %]
+		[%# Dots now use currentColor at partial opacity   %]
 		[%# instead of separate light/dark hex values - since the page's    %]
 		[%# own text color is now Material's live var(--text-color,...),    %]
 		[%# a fixed #999/#aaa pair can't track it the way currentColor can. %]
@@ -699,7 +683,7 @@
 		#tstQueueEmpty { padding:12px; opacity:0.7; }
 	</style>
 
-	[%# Henk, 25-09-2026: <h1> removed - see the CSS comment above           %]
+	[%# <h1> removed - see the CSS comment above           %]
 	[%# (#tstTopRow) for why: Material's own toolbar already shows "Live -   %]
 	[%# <player name>" for this page, so this was just repeating it.        %]
 
@@ -712,12 +696,16 @@
 		</div>
 
 		<div id="tstTopRow">
-			[%# Henk, 25-09-2026, step 7 - menu button, same position SC-EXTMIP  %]
-			[%# uses for its own sclvMenuBtn (top-left, NOT top-right - see the  %]
+			[%# Step 7 - menu button, same position SC-EXTMIP uses for its       %]
+			[%# own sclvMenuBtn (top-left, NOT top-right - see the  %]
 			[%# CSS comment above), same hamburger icon path too. Dropdown has   %]
-			[%# the "Rejected Tracks" and "History" panel entries (History      %]
-			[%# added 25-09-2026, second round) plus the two plain links to      %]
-			[%# this plugin's own settings pages.                                %]
+			[%# the "Rejected Tracks" and "History" panel entries. The Per       %]
+			[%# Player/Global Settings links that used to live here were         %]
+			[%# removed - reaching those pages this way bypassed Material's own  %]
+			[%# settings-dialog mechanism, leaving an oversized blank bar and no %]
+			[%# working slider widgets. The Mix Settings panel below covers the  %]
+			[%# settings worth adjusting on the fly; the full settings pages     %]
+			[%# remain reachable the normal way, outside Live.                   %]
 			<div class="tstMenuBtnWrap">
 				<button type="button" class="tstIconBtn" id="tstMenuBtn" aria-label="Menu" title="Menu" style="width:26px;height:26px;">
 					<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
@@ -725,27 +713,9 @@
 				<div id="tstMenuDropdown" class="tstMenuDropdown">
 					<a href="#" id="tstMenuRejectedLink">Rejected Tracks</a>
 					<a href="#" id="tstMenuHistoryLink">History</a>
-					[%# Henk, 25-09-2026, SIXTH round: "enorm brede balk/loze ruimte" %]
-					[%# below the Save button on Per Player/Global settings - but     %]
-					[%# ONLY when reached via these two links, from Live, inside the  %]
-					[%# Material app; the exact same URL reached any other way (e.g.  %]
-					[%# leaving Live first, then opening Per Player/Global normally)  %]
-					[%# renders fine. TRIED: target="_top", to force a genuine        %]
-					[%# top-level navigation instead of whatever nested/embedded      %]
-					[%# webview context Material might otherwise keep Live's own page %]
-					[%# in - made things WORSE, not better: it broke the link out of  %]
-					[%# Material's own app-contained view entirely into a real        %]
-					[%# browser view (with an address bar), and the blank-space issue %]
-					[%# still showed up regardless when navigating back into Per      %]
-					[%# Player from there. Reverted same day - plain links again,     %]
-					[%# no target attribute. Root cause still unidentified; next idea %]
-					[%# needs actual access to/logs from the Material app itself,     %]
-					[%# which isn't available here.                                  %]
-					<a href="[% webroot %]plugins/RandomFlow/settings/player.html?player=[% player | uri %][% statisticparameters %]">Per Player Settings</a>
-					<a href="[% webroot %]plugins/RandomFlow/settings/basic.html?player=[% player | uri %][% statisticparameters %]">Global Settings</a>
 				</div>
 			</div>
-			[%# Auto Mix status (Henk, 26-09-2026) - moved here from inside   %]
+			[%# Auto Mix status - moved here from inside   %]
 			[%# #tstMixSettings, matching where SC-EXTMIP keeps its own       %]
 			[%# equivalent (always visible, not inside its own collapsible    %]
 			[%# panel) - see this row's own CSS comment above for the         %]
@@ -772,6 +742,8 @@
 					<span class="tstInfoIcon" id="tstAutoMixInfoIcon">&#9432;</span>
 					<div class="tstInfoPopover">
 						Auto Mix and Lyrion's own Don't Stop The Music (DSTM) can clash if both try to queue tracks for this player at once. This is not handled automatically - if you use DSTM for this player, pick either Auto Mix or a DSTM provider, not both.
+						<br><br>
+						While Auto Mix is Disabled, "Start New Mix" and the "Start RandomFlow Mix" Extras menu entry do nothing for this player - Auto Mix has to be Enabled first.
 						<button type="button" onclick="this.parentElement.style.display='none'">Close</button>
 						<div style="clear:both;"></div>
 					</div>
@@ -781,13 +753,13 @@
 				<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
 			</button>
 		</div>
-		[%# Henk, 25-09-2026: "ook dat er verbinding is en welke speler het  %]
-		[%# is" / "notconnected yet voegt daar ook niks meer toe" - the      %]
+		[%# The connection/player-identity info this badge showed is not    %]
+		[%# useful once the page is actually in use - the                  %]
 		[%# "Player: ..." line is gone (dropped entirely, nothing reads     %]
 		[%# it), and this connection-status badge stays OUT of view for     %]
-		[%# good now. BUG FIX (25-09-2026, caught live by Henk - the badge  %]
-		[%# was still showing "Not connected yet..." in his screenshot):    %]
-		[%# the previous edit left TWO <p id="tstStatus"> elements here, a  %]
+		[%# good now. BUG FIX: the badge was still showing "Not connected   %]
+		[%# yet..." visibly on screen even though it was supposed to be     %]
+		[%# hidden - the previous edit left TWO <p id="tstStatus"> elements here, a  %]
 		[%# hidden one AND an accidental visible duplicate right after it - %]
 		[%# that duplicate, not any CSS/JS issue, is exactly why it kept    %]
 		[%# showing. Only the hidden one remains now. It's still in the     %]
@@ -800,7 +772,7 @@
 			<p id="tstStatus" class="tstWarn">Not connected yet...</p>
 		</div>
 
-		[%# Henk, 25-09-2026: "Coming Up Next" was missing entirely, not     %]
+		[%# "Coming Up Next" was missing entirely, not     %]
 		[%# just styled differently - SC-EXTMIP's own sclv-curnext-row      %]
 		[%# puts Currently Playing and Coming Up Next side by side, each    %]
 		[%# with its own icon button underneath (Start New Chain/Replace   %]
@@ -837,7 +809,7 @@
 					<button type="button" class="tstIconBtn" id="tstStartMixBtn" aria-label="Start New Mix" title="Start New Mix">
 						<svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
 					</button>
-					[%# Henk, 28-09-2026: SC-EXTMIP's "Start Batch" - queues %]
+					[%# SC-EXTMIP's "Start Batch" - queues %]
 					[%# batchSize tracks (Settings/Player.pm) at once instead  %]
 					[%# of the usual single pick. See MixRunner::startBatch.   %]
 					<button type="button" class="tstIconBtn" id="tstStartBatchBtn" aria-label="Start Batch" title="Start Batch">
@@ -864,8 +836,8 @@
 					[%# SC-EXTMIP's equivalent is "Replace Track", gated by its own %]
 					[%# sc_can_act (Plugin.pm: CheckPosition($client) <= 2) - a   %]
 					[%# purely structural check on queue position, independent   %]
-					[%# of whether Chain Mode itself is enabled (Henk, 27-09-2026: %]
-					[%# Chain/Auto Mix can stay "Enabled" while an album plays -  %]
+					[%# of whether Chain Mode itself is enabled: Chain/Auto Mix    %]
+					[%# can stay "Enabled" while an album plays -                 %]
 					[%# that's not what hides the button there). Same idea here: %]
 					[%# shown only while exactly one track is queued after the   %]
 					[%# one playing - matches MixRunner::replaceNext's own guard %]
@@ -874,7 +846,7 @@
 					<button type="button" class="tstIconBtn" id="tstReplaceNextBtn" aria-label="Replace Track" title="Replace Track">
 						<svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
 					</button>
-					[%# Henk, 28-09-2026: SC-EXTMIP's "top up" - appends       %]
+					[%# SC-EXTMIP's "top up" - appends       %]
 					[%# batchSize tracks behind whatever's already queued      %]
 					[%# (batch or mix), always visible (unlike Replace Track,  %]
 					[%# this doesn't depend on queue position). See            %]
@@ -886,13 +858,11 @@
 			</div>
 		</div>
 
-		[%# Henk, 25-09-2026: quick mix controls "onderaan de pagina" -     %]
-		[%# started with just the filter switcher (already planned back on %]
-		[%# 20-09-2026 - "later ook op de Live-pagina"), THIRD round (Henk: %]
-		[%# "ratings hoeft er niet bij, de rest mag je bouwen") adds        %]
+		[%# Quick mix controls at the bottom of the page - started with      %]
+		[%# just the filter switcher, then added                           %]
 		[%# Wobble/Max Playcount/Artist Cooldown/Album Cooldown - every     %]
-		[%# "good candidate" from the 25-09-2026 design discussion except   %]
-		[%# exclude-ratings, which Henk explicitly said to skip. Plain page %]
+		[%# "good candidate" from the design discussion except              %]
+		[%# exclude-ratings, which was deliberately left out. Plain page    %]
 		[%# flow, not position:fixed like the transport bar - scrolls with  %]
 		[%# the rest of the content, same as #tstCurNextRow above. Backed   %]
 		[%# by the 'randomflow mixsettings'/'setfilter _filterid'/   %]
@@ -905,17 +875,17 @@
 		[%# per-player prefs Settings/Player.pm's own fields read/write),  %]
 		[%# each setX() saves just its own one. EVERY control here         %]
 		[%# immediately replaces the already-queued upcoming track after   %]
-		[%# saving (Henk, 25-09-2026, second round - "ik wissel nu, dus de %]
-		[%# volgende track moet ook meteen kloppen"), same as the          %]
+		[%# saving, matching the expectation that a setting change applies %]
+		[%# to the upcoming track right away, same as the                  %]
 		[%# "Replace Track" button does - see Plugin.pm's own comment on   %]
 		[%# _handleSetFilter for the full reasoning, which now applies to  %]
-		[%# all of these the same way. FOURTH round (Henk): Max Playcount  %]
+		[%# all of these the same way. Max Playcount                      %]
 		[%# also became a slider (see its own markup comment below), every %]
 		[%# slider now stretches full-width, and touch drags no longer     %]
 		[%# jump on a stray tap (see the CSS comment on                   %]
 		[%# .tstSettingRow input[type="range"] above and the touch handler %]
 		[%# near the bottom of this script).                              %]
-		[%# ontoggle removed (Henk, 26-09-2026) - see the closure-scope bug   %]
+		[%# ontoggle removed - see the closure-scope bug   %]
 		[%# fix further down this script: an inline ontoggle/onclick         %]
 		[%# attribute always runs in GLOBAL scope, and this whole page's     %]
 		[%# script is wrapped in its own (function(){...})() closure, so     %]
@@ -924,7 +894,16 @@
 		[%# inside the closure, same fix already applied once before to      %]
 		[%# tstPanelClose's own onclick for the same reason.                 %]
 		<details id="tstMixSettings" data-scopen="1" open>
-			<summary>Mix Settings</summary>
+			<summary>Mix Settings
+				<span class="tstInfoWrap">
+					<span class="tstInfoIcon" id="tstMixSettingsInfoIcon">&#9432;</span>
+					<div class="tstInfoPopover">
+						Mix Settings here covers the most common adjustments. For the full set of options (Mix Mode, Pool/Batch Size, artist lists, genre block, ratings), use this player's or the server's regular Settings page.
+						<button type="button" onclick="this.parentElement.style.display='none'">Close</button>
+						<div style="clear:both;"></div>
+					</div>
+				</span>
+			</summary>
 			<div class="tstSettingRow">
 				<label for="tstFilterSelect">Filter</label>
 				<select id="tstFilterSelect" class="tstSettingSelect">
@@ -936,26 +915,25 @@
 				<input type="range" id="tstWobbleRange" min="0" max="100" step="1" value="0">
 				<span class="tstSettingValue" id="tstWobbleValue">0</span>
 			</div>
-			[%# Henk, 25-09-2026, FOURTH round: "Playcount ook graag een      %]
-			[%# slider, mits dat niet mogelijk is" - unlike Wobble/Artist/    %]
-			[%# Album Cooldown above, Max Playcount has no natural fixed max  %]
-			[%# (it's a playcount ceiling, not a percentage - Settings/       %]
-			[%# Player.pm's own field is a plain number box for the same     %]
-			[%# reason), so a slider can't represent "no limit" as just       %]
-			[%# another number on the scale. Picked 0-50 as a generous range  %]
-			[%# (most real libraries rarely see a single track played that    %]
-			[%# often) with the TOP position meaning "no limit" - the value   %]
-			[%# readout shows "No limit" instead of "50" there, and reaching  %]
-			[%# it sends an empty value to setmaxplaycount, exactly the same  %]
-			[%# "blank = no limit" convention the old text field already      %]
-			[%# used (see _handleSetMaxPlaycount's own comment) - so 50       %]
-			[%# itself can never be set as a literal ceiling this way, same   %]
-			[%# "the very top of the range means something else" trade-off a  %]
-			[%# "500km+" distance filter makes. If 50 turns out too low or    %]
-			[%# too high a ceiling for Henk's real library, that's a one-line %]
-			[%# change (the min/max/step attributes below plus the div-by-50  %]
-			[%# check in tstMixSettingsRender/the slider's own wiring further %]
-			[%# down this script).                                           %]
+			[%# Max Playcount as a slider: unlike Wobble/Artist/Album Cooldown  %]
+			[%# above, it has no natural fixed max (it's a playcount ceiling,  %]
+			[%# not a percentage - Settings/Player.pm's own field is a plain   %]
+			[%# number box for the same reason), so a slider can't represent   %]
+			[%# "no limit" as just another number on the scale. Picked 0-50 as %]
+			[%# a generous range (most real libraries rarely see a single      %]
+			[%# track played that often) with the TOP position meaning "no     %]
+			[%# limit" - the value readout shows "No limit" instead of "50"    %]
+			[%# there, and reaching it sends an empty value to                 %]
+			[%# setmaxplaycount, exactly the same "blank = no limit"           %]
+			[%# convention the old text field already used (see                %]
+			[%# _handleSetMaxPlaycount's own comment) - so 50 itself can never %]
+			[%# be set as a literal ceiling this way, same "the very top of    %]
+			[%# the range means something else" trade-off a "500km+" distance  %]
+			[%# filter makes. If 50 turns out too low or too high a ceiling in %]
+			[%# practice, that's a one-line change (the min/max/step           %]
+			[%# attributes below plus the div-by-50 check in                   %]
+			[%# tstMixSettingsRender/the slider's own wiring further down this %]
+			[%# script).                                                       %]
 			<div class="tstSettingRow">
 				<label for="tstMaxPlaycountRange">Max Playcount</label>
 				<input type="range" id="tstMaxPlaycountRange" min="0" max="50" step="1" value="50">
@@ -978,8 +956,7 @@
 		[%# <script> tag right here the way SC-EXTMIP calls its own          %]
 		[%# scLvApplyDetailsState() (its liveview.html isn't wrapped in a    %]
 		[%# closure the way this page is, so a bare inline call works fine   %]
-		[%# there). BUG (Henk, 26-09-2026, found while chasing the "can't    %]
-		[%# scroll" report): an inline <script>tstApplyDetailsState();       %]
+		[%# there). BUG: an inline <script>tstApplyDetailsState();           %]
 		[%# </script> placed here would run in GLOBAL scope, but             %]
 		[%# tstApplyDetailsState is declared inside this page's own          %]
 		[%# (function(){...})() closure - undefined from here, so that       %]
@@ -998,8 +975,7 @@
 
 		<div id="tstQueuePanel"></div>
 
-		[%# Step 7 - "Rejected Tracks" panel (Henk, 25-09-2026; small-dropdown %]
-		[%# styling added 25-09-2026, second round). Small floating card now,   %]
+		[%# Step 7 - "Rejected Tracks" panel. Small floating card,              %]
 		[%# same #tstQueuePanel convention rather than a full-height overlay -  %]
 		[%# opened via tstPanelOpen('rejected'), which positions it under the   %]
 		[%# menu button (see the .tstPanel CSS comment above), closed via       %]
@@ -1024,8 +1000,8 @@
 			</div>
 		</div>
 
-		[%# History panel (Henk, 25-09-2026, second round) - same small-       %]
-		[%# dropdown .tstPanel pattern as Rejected Tracks above, opened via     %]
+		[%# History panel - same small-dropdown .tstPanel pattern as            %]
+		[%# Rejected Tracks above, opened via                                   %]
 		[%# tstPanelOpen('history'). Reads Lyrion's own lastPlayed tracking     %]
 		[%# (TrackSelector::findRecentlyPlayed), not a mix-criteria query - see %]
 		[%# that function's own comment for why this deliberately does NOT     %]
@@ -1044,8 +1020,8 @@
 			</div>
 		</div>
 
-		[%# Henk, 25-09-2026: "status update en connection log mogen daar    %]
-		[%# weg" - same reasoning as the connection-status badge above:      %]
+		[%# Status update and connection log are hidden from the visible     %]
+		[%# page - same reasoning as the connection-status badge above:      %]
 		[%# hidden, not removed, since renderNowPlaying()/handleMessages()/  %]
 		[%# logLine() below still write into #tstJson/#tstLog on every       %]
 		[%# push and every connection-lifecycle event - that's still live,   %]
@@ -1062,8 +1038,7 @@
 		[%# Fixed at the bottom of the viewport (see the CSS comment above)   %]
 		[%# - same DOM placement as SC-EXTMIP's own progress bar/transport    %]
 		[%# bar, right after its main content and before pagefooter.html.    %]
-		[%# One row now (Henk, 25-09-2026, THIRD round - "net zo als          %]
-		[%# Material"): elapsed time, the bar itself, duration time, left to  %]
+		[%# One row: elapsed time, the bar itself, duration time, left to     %]
 		[%# right, same as Material's own player bar - see the CSS comment    %]
 		[%# above for why nothing else needed to move as a result.            %]
 		<div id="tstNpTimes">
@@ -1088,7 +1063,7 @@
 			var webroot   = "[% webroot %]";
 			var cometdUrl = webroot + "cometd";
 
-			// Album Mix mode (Henk, 29-09-2026) - set once from the initial
+			// Album Mix mode - set once from the initial
 			// mixsettings fetch (tstMixSettingsRender below), not expected
 			// to change without a page reload. 'songs' (default) keeps
 			// every existing behaviour; 'albums' hides the batch buttons
@@ -1101,25 +1076,22 @@
 			var msgId           = 0;
 			var reconnecting    = false;
 
-			// Henk, 26-09-2026 - "scrollen werkt niet" investigation: this
-			// page has no console visible on a phone/tablet, and chasing
-			// that report turned up a real, silent bug (see the closure-
-			// scope fixes on tstToggleInfo/tstDetailsToggle/
-			// tstApplyDetailsState further down) that a console would have
-			// shown instantly. Reports any future uncaught JS error both
-			// into the existing #tstLog debug panel (logLine, defined
-			// further down this same closure - function declarations are
-			// hoisted, so referencing it here before its own line is fine)
-			// AND into the small #tstJsErrorBanner added right above
-			// #tstTopRow in the markup - #tstLog alone isn't enough, it's
-			// been sitting inside a display:none wrapper since 25-09-2026
-			// (Henk: "status update en connection log mogen daar weg"), so
-			// nothing written there was ever actually visible without
+			// This page has no console visible on a phone/tablet, so a
+			// silent JS error (see the closure-scope fixes on
+			// tstToggleInfo/tstDetailsToggle/tstApplyDetailsState further
+			// down) would otherwise go unnoticed. Reports any uncaught JS
+			// error both into the existing #tstLog debug panel (logLine,
+			// defined further down this same closure - function
+			// declarations are hoisted, so referencing it here before its
+			// own line is fine) AND into the small #tstJsErrorBanner added
+			// right above #tstTopRow in the markup - #tstLog alone isn't
+			// enough, since it sits inside a display:none wrapper (status
+			// update and connection log are hidden from the visible page),
+			// so nothing written there was ever actually visible without
 			// devtools - exactly the problem this diagnostic exists to
 			// solve. The banner only appears when there's a real error to
-			// show, so it doesn't bring back the always-on clutter Henk
-			// asked to hide.
-			// tstShowErrorBanner - Henk, 26-09-2026: pulled out of the
+			// show, so it doesn't bring back always-on clutter.
+			// tstShowErrorBanner is pulled out of the
 			// window.addEventListener('error', ...) handler right below so
 			// tstPlayerCmd's own .catch() (further down) can reuse it too.
 			// Found while chasing a report of the Auto Mix toggle/DSTM not
@@ -1142,7 +1114,7 @@
 				tstShowErrorBanner('JS error: ' + e.message + ' (' + (e.filename || '?') + ':' + (e.lineno || '?') + ')');
 			});
 
-			// Step 2 - progress ticker state (Henk, 24-09-2026): pushes
+			// Step 2 - progress ticker state: pushes
 			// only arrive on a real change or the 30s heartbeat, so a
 			// naive progress bar would visibly jump/stall between them.
 			// Instead we remember the elapsed/duration/mode from the
@@ -1156,7 +1128,7 @@
 			var tickerSince    = null;
 			var tickerTimer    = null;
 
-			// Step 4 - queue panel state (Henk, 24-09-2026): the queue
+			// Step 4 - queue panel state: the queue
 			// listing is a separate one-off JSON-RPC query, not something
 			// our per-track cometd subscribe covers (see the plan
 			// comment above) - only fetched/rendered while the panel is
@@ -1167,7 +1139,7 @@
 			var tstQueueOpen           = false;
 			var tstLastPlaylistStamp   = null;
 
-			// Step 7, THIRD round (Henk, 25-09-2026) - "last played" has no
+			// Step 7 - "last played" has no
 			// tag at all (see pickId's own comment), so it's fetched
 			// separately via the new 'trackstats' action, only when the
 			// current/next track ids actually change - not on every push,
@@ -1175,7 +1147,7 @@
 			// panel's own playlist_timestamp check above.
 			var tstLastStatsKey = null;
 
-			// Step 7 - menu/panel state (Henk, 25-09-2026): same idea as
+			// Step 7 - menu/panel state: same idea as
 			// tstQueueOpen above, just for the menu dropdown - only one
 			// panel exists right now (Rejected Tracks), so unlike SC-EXTMIP's
 			// own scLvOpenPanelId this doesn't need to track WHICH panel is
@@ -1185,10 +1157,9 @@
 
 			function nextId() { msgId += 1; return String(msgId); }
 
-			// tstJsonPost - Henk, 26-09-2026: root cause of the Auto Mix
-			// toggle's "Failed to fetch" traced to window.fetch() itself
-			// being blocked somewhere in Henk's browser/security-software
-			// setup - every single such failure showed NOTHING in the
+			// tstJsonPost: the Auto Mix toggle's "Failed to fetch" traced to
+			// window.fetch() itself being blocked by browser/security
+			// software on some setups - such a failure shows NOTHING in the
 			// Network tab at all (a real network error always leaves a
 			// trace there), and it happened on EVERY use, but only from
 			// THIS page. player.html's own tstPlayerCmd - same server,
@@ -1235,7 +1206,7 @@
 			// scQueueAction use, ported faithfully: POST to /jsonrpc.js
 			// (the server's own root endpoint - deliberately NOT webroot-
 			// relative, matching SC-EXTMIP's own hardcoded path, which is
-			// proven to work across Henk's setups). Unlike SC-EXTMIP, a
+			// proven to work across different setups). Unlike SC-EXTMIP, a
 			// transport command (play/pause/skip) needs no manual
 			// "refresh after" here - our cometd subscription already
 			// reacts to that instantly (see the plan comment above) - so
@@ -1243,7 +1214,7 @@
 			// one, refreshing the queue after a queue-editing command.
 			function tstPlayerCmd(cmd, afterFn) {
 				tstJsonPost('/jsonrpc.js', { id: 1, method: 'slim.request', params: [PLAYER_ID, cmd] }).then(function(resp) {
-					// Henk, 26-09-2026: fetch() only rejects on a real network
+					// fetch() only rejects on a real network
 					// failure - an HTTP error status (500, a session that's
 					// gone stale, etc.) still resolves normally, so a bad
 					// response was silently swallowed here before: the button/
@@ -1267,16 +1238,14 @@
 				return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			}
 
-			// tstDetailsToggle/tstApplyDetailsState - Henk, 26-09-2026:
-			// "ik kan niet scrollen naar de onderste opties van de mix
-			// settings... in SC kan het settings gedeelte in/uitklapbaar,
-			// en onthoud de status, is hij ingeklapt dan blijft hij dat en
-			// andersom net zo". Ported from SC-EXTMIP's own
+			// tstDetailsToggle/tstApplyDetailsState: the Mix Settings
+			// section remembers its collapsed/expanded state across visits,
+			// same as SC's own settings panel. Ported from SC-EXTMIP's own
 			// scLvDetailsToggle/scLvApplyDetailsState (liveview.html),
 			// including that page's own reasoning for WHY this lives in
 			// localStorage rather than a server pref: SC-EXTMIP went
-			// through a per-player pref first, which looked right until
-			// Henk noticed it is shared by every VIEWER of that player -
+			// through a per-player pref first, which looked right until it
+			// turned out to be shared by every VIEWER of that player -
 			// collapsing the panel in one browser/app collapsed it
 			// everywhere else looking at the same player too, including
 			// for someone else entirely. This is a per-VIEWER display
@@ -1308,15 +1277,15 @@
 			}
 
 			// Same 5-dot always-drawn convention as SC-EXTMIP's own
-			// scStars (Henk's own later fix there - an unrated track
+			// scStars (a later fix there - an unrated track
 			// still gets 5 empty dots rather than no row at all, so
-			// every queue row stays the same height). Henk, 24-09-2026:
+			// every queue row stays the same height).
 			// SC-EXTMIP's own version used a Unicode star character
 			// (escaped as \u2605/\u2606 there specifically to dodge a
 			// file-encoding mismatch it hit with the literal character -
-			// see its own comment) - but on Henk's setup here even a
-			// literal star character came out as mojibake, so this
-			// avoids the whole class of problem by drawing plain CSS
+			// see its own comment) - but a literal star character can
+			// still come out as mojibake depending on the device/font, so
+			// this avoids the whole class of problem by drawing plain CSS
 			// dots instead of depending on a Unicode glyph the device's
 			// font may or may not have at all.
 			function tstStars(rating) {
@@ -1379,13 +1348,13 @@
 				});
 			}
 
-			[%# Henk, 25-09-2026: btn.textContent used to relabel this button   %]
+			[%# btn.textContent used to relabel this button                    %]
 			[%# "Hide queue"/"Queue" - left over from when it was still a text  %]
 			[%# button. Now that it's an icon button (matching SC-EXTMIP's own  %]
 			[%# scQueueBtn), that would just wipe out the SVG icon each click,  %]
 			[%# so this only updates the aria-label/title instead.             %]
-			[%# 25-09-2026, second round: "waarom opent de queue knop niet      %]
-			[%# direct onder de knop zoals in SC" - ported SC-EXTMIP's own      %]
+			[%# The panel opens directly under the toggle button, same as SC:  %]
+			[%# ported SC-EXTMIP's own                                        %]
 			[%# scQueueToggle positioning logic directly: getBoundingClientRect%]
 			[%# on the button gives its actual on-screen position (viewport-   %]
 			[%# relative, same coordinate space position:fixed top/right use), %]
@@ -1395,8 +1364,8 @@
 			[%# reserved space for OUR fixed bottom stack (see the body        %]
 			[%# padding-bottom comment above) - transport+time+progress bar    %]
 			[%# (88px) plus a small margin, not SC-EXTMIP's own 68px pair.     %]
-			[%# 25-09-2026, THIRD round: "op een telefoon zit de queue links   %]
-			[%# buiten beeld en rechts is nog ruimte" - width used to come     %]
+			[%# On a phone the queue panel could otherwise sit partly off-     %]
+			[%# screen on one side - width used to come     %]
 			[%# from CSS (width:min(94vw,460px), see that rule's own comment   %]
 			[%# for why vw was the bug). Width is now computed here instead,   %]
 			[%# in real pixels from the SAME vw (clientWidth) value the right  %]
@@ -1472,20 +1441,20 @@
 			});
 
 			// Same tstPanelIds-array pattern as SC-EXTMIP's own scLvPanelIds -
-			// now two panels (History added 25-09-2026, second round). Kept
+			// now two panels (History added later). Kept
 			// as an array (not hardcoded to the two names) so tstPanelClose
 			// and the click-outside-close listener above stay one-line
 			// changes if a third panel is ever added.
 			var tstPanelIds = ['tstPanelRejected', 'tstPanelHistory'];
 
-			// Henk, 25-09-2026, second round: "Queue is een mooi klein menu, kan
-			// Rejected Tracks ook zo?" - positioned exactly like tstQueueToggle
+			// Rejected Tracks opens as the same kind of small floating panel as
+			// the Queue toggle: positioned exactly like tstQueueToggle
 			// positions #tstQueuePanel, just anchored to the menu button
 			// (tstMenuBtn) instead of the Queue toggle button, since that's
 			// what's actually still on screen by the time this runs (the menu
 			// dropdown itself is already hidden a few lines up). Generalized to
-			// a name->element-id map (still same round, History added) rather
-			// than the original single "if (name !== 'rejected') return" guard,
+			// a name->element-id map (History added later) rather
+			// than a single "if (name !== 'rejected') return" guard,
 			// since the positioning math itself doesn't care WHICH panel it's
 			// placing - only which fetch function to call afterwards differs.
 			var tstPanelElementIds = { rejected: 'tstPanelRejected', history: 'tstPanelHistory' };
@@ -1528,7 +1497,7 @@
 			// this is a small floating card rather than a full-page overlay,
 			// it should close the same way the Queue panel does, on top of
 			// the existing Back button.
-			// BUG FIX (Henk, 25-09-2026, second round): the click that OPENS a
+			// BUG FIX: the click that OPENS a
 			// panel - the menu link inside #tstMenuDropdown, e.g.
 			// #tstMenuRejectedLink - still bubbles up to this same listener on
 			// the very same click. That link sits inside neither the panel nor
@@ -1549,7 +1518,7 @@
 				}
 			});
 
-			// Step 7 - "Rejected Tracks" panel (Henk, 25-09-2026). One row per
+			// Step 7 - "Rejected Tracks" panel. One row per
 			// track with why it got excluded (reasons is always an array,
 			// joined for display - a track can have more than one reason,
 			// e.g. both "Artist cooldown" and "Max playcount"), plus a "queue
@@ -1615,7 +1584,7 @@
 				});
 			}
 
-			// History panel (Henk, 25-09-2026, second round). See
+			// History panel. See
 			// TrackSelector::findRecentlyPlayed's own comment for why this
 			// reads Lyrion's own lastPlayed tracking instead of porting
 			// SC-EXTMIP's own queue-time-logged History table. Rows are
@@ -1623,16 +1592,14 @@
 			// rating) than to Rejected Tracks' simpler ones, since there's
 			// no "reason" text here - plus a last-played date. UNLIKE
 			// Rejected Tracks, there is deliberately no "queue as next"
-			// button here (removed 25-09-2026, THIRD round, Henk - "die
-			// knop mag daar weg, het dient puur als naslagwerk") - History
-			// is purely a look-back at what already played, not a place to
-			// queue from. Henk did flag a possible FUTURE action here
-			// instead - playing the whole ALBUM a row belongs to - but
-			// noted there's no icon anywhere in this plugin yet for
+			// button here - History is purely a reference list of what
+			// already played, not a place to queue from. A possible FUTURE
+			// action here would be playing the whole ALBUM a row belongs
+			// to, but there's no icon anywhere in this plugin yet for
 			// "add/play an album", so that's not built.
 			function tstPad2(n) { return (n < 10 ? '0' : '') + n; }
 
-			// DD-MM-YYYY, Henk's own date format preference - no time, the
+			// DD-MM-YYYY - no time, the
 			// exact minute a track last played isn't the point here, just
 			// roughly when.
 			function fmtLastPlayed(ts) {
@@ -1698,9 +1665,9 @@
 				});
 			}
 
-			// Mix Settings section (Henk, 25-09-2026, THIRD round adds
+			// Mix Settings section: adds
 			// Wobble/Max Playcount/Artist Cooldown/Album Cooldown to the
-			// filter switcher from the second round). One-off fetch on
+			// filter switcher. One-off fetch on
 			// page load, same "not a subscribe, just ask once" pattern as
 			// tstFetchInitialStatus() below - none of these settings
 			// change on their own mid-session (only this same page's own
@@ -1713,7 +1680,7 @@
 			// with each other about where that cutoff actually is.
 			var TST_MAXPLAYCOUNT_SLIDER_MAX = 50;
 
-			// tstToggleInfo - Henk, 26-09-2026: opens/closes the Auto Mix
+			// tstToggleInfo opens/closes the Auto Mix
 			// row's info popover (explaining the DSTM behaviour). Ported
 			// from SC-EXTMIP's own scToggleInfo (liveview.html) - same
 			// click-to-open widget, same on-screen clamp (a popover this
@@ -1766,7 +1733,18 @@
 				});
 			});
 
+			// Skip the refresh while the user has an actual control in this
+			// section focused (a dropdown open, a slider mid-drag, ...) -
+			// the 5s interval was overwriting/reverting their own in-progress
+			// change out from under them (race between their click and a
+			// refresh landing with still-stale server data).
+			function tstMixSettingsFocused() {
+				var el = document.activeElement;
+				return !!(el && (el.closest('.tstAutoMixStatus') || el.closest('#tstMixSettings')));
+			}
+
 			function tstMixSettingsFetch() {
+				if (tstMixSettingsFocused()) { return; }
 				tstJsonPost('/jsonrpc.js', { id: 1, method: 'slim.request', params: [PLAYER_ID, ['randomflow', 'mixsettings']] }).then(function(resp) { return resp.json(); }).then(function(data) {
 					tstMixSettingsRender((data && data.result) || {});
 				}).catch(function(err) {
@@ -1775,7 +1753,7 @@
 			}
 
 			function tstMixSettingsRender(data) {
-				// Album Mix mode (Henk, 29-09-2026): Start Batch/Top Up are
+				// Album Mix mode: Start Batch/Top Up are
 				// a Songs-only concept (MixRunner.pm refuses them in album
 				// mode too, as a backend safety net) - hidden here once,
 				// same "set once at load" spirit as RF_MIX_MODE itself.
@@ -1875,8 +1853,8 @@
 				var item = data.playlist_loop && data.playlist_loop[0];
 				return (item && item.album) || (data.remoteMeta && data.remoteMeta.album) || '';
 			}
-			// Henk, 25-09-2026, THIRD round: genre/rating/playcount/id for
-			// the new stat lines - genre/rating/playcount come straight off
+			// genre/rating/playcount/id for
+			// the stat lines - genre/rating/playcount come straight off
 			// the same playlist_loop item (tags:galdcKRO, see the subscribe
 			// comment above), no remoteMeta fallback for any of these three
 			// (a remote/radio stream has no library genre/rating/playcount
@@ -1914,7 +1892,7 @@
 				return '';
 			}
 
-			[%# Henk, 25-09-2026: SC-EXTMIP's Live/QuickSettings pages show    %]
+			[%# SC-EXTMIP's Live/QuickSettings pages show    %]
 			[%# "Coming Up Next" beside "Currently Playing" - this page had     %]
 			[%# no equivalent at all. playlist_loop[1] is the upcoming track    %]
 			[%# (now that the status query above asks for count:2, not 1) -    %]
@@ -1957,17 +1935,16 @@
 				return '';
 			}
 
-			// Henk, 25-09-2026: "Playing" -> "Now Playing" - #tstNpState's
+			// "Playing" -> "Now Playing" - #tstNpState's
 			// own CSS already renders this uppercase/letter-spaced (see
 			// its rule above), so this still shows as "NOW PLAYING", same
 			// badge style as before, just the fuller wording underneath.
 			var MODE_LABEL = { play: 'Now Playing', pause: 'Paused', stop: 'Stopped' };
 
 			[%# Ported near-verbatim from SC-EXTMIP's own liveview.html      %]
-			[%# (scRgb2Hsv/scHsv2Rgb/scIsGrey/scUpdateCoverColor), from       %]
-			[%# 08-09-2026 - Henk's request (bar tint per-cover, matching    %]
-			[%# what Material's own UI already does), Claude's algorithm     %]
-			[%# in that earlier session - only the element ids below         %]
+			[%# (scRgb2Hsv/scHsv2Rgb/scIsGrey/scUpdateCoverColor), to give    %]
+			[%# the progress bar a per-cover tint matching what Material's   %]
+			[%# own UI already does - only the element ids below             %]
 			[%# changed to match this page's own naming. See its own         %]
 			[%# original comment (in that file) for the two earlier          %]
 			[%# attempts this replaced and why they didn't work: a plain     %]
@@ -2075,7 +2052,7 @@
 				catch (e) {}
 			}
 
-			[%# Henk, 25-09-2026, second round: elapsed/duration TEXT is back,  %]
+			[%# Elapsed/duration TEXT shows                                     %]
 			[%# in its own #tstNpTimes row directly under the progress bar     %]
 			[%# (see the CSS/HTML above) - fmtTime() already existed for the   %]
 			[%# queue panel's own duration column, reused here too.           %]
@@ -2098,7 +2075,7 @@
 				}
 			}
 
-			// Henk, 25-09-2026, THIRD round: "last played" for the new stat
+			// "last played" for the stat
 			// lines - the one field of the four (genre/rating/playcount/
 			// last played) with no tag at all (see pickId's own comment),
 			// so it needs its own small round trip to the new
@@ -2135,7 +2112,7 @@
 				document.getElementById('tstNpAlbum').textContent  = pickAlbum(data);
 				document.getElementById('tstNpState').textContent  = MODE_LABEL[data.mode] || data.mode || '-';
 
-				// Henk, 25-09-2026, THIRD round: genre/rating/playcount -
+				// genre/rating/playcount -
 				// same "Genre: X" plain-text style SC-EXTMIP's own panel
 				// uses, rating as star dots instead (see the CSS comment on
 				// .tstStatLine for why). Genre/Playcount/Last Played hide
@@ -2156,7 +2133,7 @@
 				// does next - LMS's own "pause" command toggles, it has
 				// no separate "play" vs "pause" verb, so this is the
 				// only way the button can know which icon to show.
-				// Henk, 24-09-2026, fourth round: was one svg with its
+				// Was one svg with its
 				// path "d" swapped - changed to SC-EXTMIP's own approach,
 				// two separate svg elements toggled via style.display,
 				// same as its own scUpdatePlayState (see live.html's own
@@ -2185,20 +2162,20 @@
 					if (tstQueueOpen) { tstQueueFetch(); }
 				}
 
-				[%# Henk, 25-09-2026: "Coming Up Next" - same block as       %]
+				[%# "Coming Up Next" - same block as                        %]
 				[%# SC-EXTMIP's own (see the markup comment on               %]
 				[%# #tstNextPlaying below). playlist_loop[1] is empty        %]
 				[%# whenever nothing is queued yet (e.g. right after Start   %]
 				[%# New Mix, before MixRunner tops up the queue) - shown as  %]
 				[%# a plain placeholder line rather than an empty title,     %]
 				[%# same spirit as tstQueueEmpty for the queue panel.        %]
-				// Henk, 27-09-2026: Replace Track shown only while exactly
+				// Replace Track shown only while exactly
 				// one track is queued after the one playing - same
 				// structural check as MixRunner::replaceNext's own guard,
 				// and SC-EXTMIP's sc_can_act (CheckPosition <= 2) - not
 				// tied to the Auto Mix toggle, which can stay Enabled while
 				// something else (an album, a batch) is actually playing.
-				// Henk, 28-09-2026: plain style.display='none' stopped
+				// Plain style.display='none' stopped
 				// working once this toggle moved from the old wrapper div
 				// onto the button itself (batch-mode layout cleanup) -
 				// .tstIconBtn forces display:inline-flex !important, which
@@ -2207,7 +2184,7 @@
 				var replaceBtn = document.getElementById('tstReplaceNextBtn');
 				var showReplace;
 				if (RF_MIX_MODE === 'albums') {
-					// Henk, 29-09-2026: in Album Mix mode this button
+					// In Album Mix mode this button
 					// replaces the whole upcoming ALBUM (MixRunner::
 					// _replaceNextAlbum, guarded there by the precise
 					// numeric album id), so it only makes sense once the
@@ -2316,9 +2293,9 @@
 				});
 			}
 
-			// Henk, 26-09-2026: "na een herstart blijft oude info getoond
-			// worden, alleen Live verlaten en terug gaan lost het op" -
-			// found the actual cause. A Lyrion server restart drops every
+			// After a Lyrion server restart, stale info kept showing until
+			// leaving and re-entering this page - found the actual cause. A
+			// Lyrion server restart drops every
 			// open '/meta/connect' long-poll AND invalidates the clientId
 			// that came out of the ORIGINAL handshake() call - the server
 			// that comes back up has never heard of it. The server then
@@ -2328,8 +2305,8 @@
 			// network error - the fetch() itself succeeds fine, so
 			// connectLoop()'s own .catch() below never sees this at all).
 			// Before this fix, handleMessages() only logged that failure
-			// (into the hidden #tstLog, so Henk never even saw the log
-			// line) and connectLoop() kept recursing with the exact same
+			// (into the hidden #tstLog, so the failure was never actually
+			// visible) and connectLoop() kept recursing with the exact same
 			// dead clientId forever - silently wedged until a full page
 			// reload forced a fresh handshake(). reconnect() is the fix:
 			// treat "server doesn't recognise this session any more" as
@@ -2381,8 +2358,8 @@
 					id: nextId()
 				}]).then(function(messages) {
 					handleMessages(messages);
-					// Henk, 26-09-2026 fix (see reconnect()'s own comment
-					// above): handleMessages() may have just called
+					// See reconnect()'s own comment
+					// above: handleMessages() may have just called
 					// reconnect(), which sets connected=false - checked
 					// here instead of recursing unconditionally, so this
 					// loop doesn't keep hammering the server with the
@@ -2404,7 +2381,7 @@
 					clientId: clientId,
 					data: {
 						response: responseChannel,
-						// 30s, not 1s (Henk, 24-09-2026): the "N" in
+						// 30s, not 1s: the "N" in
 						// subscribe:N is also a forced-heartbeat ceiling,
 						// not just a debounce floor between real changes -
 						// with 1 we got a push every single second even
@@ -2418,15 +2395,15 @@
 						// already LMS's own default when no tags param is
 						// given, spelled out explicitly rather than
 						// relying on that default silently.
-						// Henk, 25-09-2026, THIRD round: R/O added - rating and
-						// playcount, for the new stat lines under Now Playing/Up
+						// R/O added - rating and
+						// playcount, for the stat lines under Now Playing/Up
 						// Next (see the CSS comment above). Verified against the
 						// real LMS source (Slim::Control::Queries %tagMap): R and
 						// O are plain per-track tags, same as gald above - unlike
 						// "last played", which has NO tag at all (confirmed the
 						// same way - it's a blank line in %tagMap's own comment
 						// column), hence the separate trackstats fetch below.
-						// Henk, 25-09-2026: count changed from 1 to 2 - SC-
+						// count changed from 1 to 2 - SC-
 						// EXTMIP's own Live/QuickSettings pages show BOTH
 						// "Currently Playing" (playlist_loop[0]) AND "Coming
 						// Up Next" (playlist_loop[1]) side by side, which
@@ -2448,7 +2425,7 @@
 				});
 			}
 
-			// Henk, 24-09-2026, caught live: the subscribe response is
+			// The subscribe response is
 			// NOT reliably an instant snapshot - the first real data can
 			// take up to the subscribe:N ceiling (30s) to arrive if
 			// nothing happens to change in the meantime, leaving the
@@ -2491,7 +2468,7 @@
 					subscribe();
 					tstFetchInitialStatus();
 				}).catch(function(err) {
-					// Henk, 26-09-2026: this used to give up permanently
+					// This used to give up permanently
 					// on any failure - fine for a one-off glitch on the
 					// very first page load, wrong for reconnect()'s use
 					// (see its own comment above) where the server is
@@ -2535,7 +2512,7 @@
 				tstPlayerCmd(['randomflow', 'startmix']);
 			});
 			// New 'randomflow replacenext' action (Plugin.pm/
-			// MixRunner::replaceNext, added 25-09-2026) - see this
+			// MixRunner::replaceNext) - see this
 			// button's own markup comment above. Same "no manual
 			// re-fetch" reasoning as Start Mix: the cometd subscription
 			// picks up the resulting playlist change (and the new
@@ -2544,7 +2521,7 @@
 				tstPlayerCmd(['randomflow', 'replacenext']);
 			});
 			// 'randomflow startbatch'/'randomflow topup' (Plugin.pm/
-			// MixRunner::startBatch/topUpQueue, added 28-09-2026) - same
+			// MixRunner::startBatch/topUpQueue) - same
 			// "no manual re-fetch" reasoning as Start Mix/Replace Track.
 			document.getElementById('tstStartBatchBtn').addEventListener('click', function() {
 				tstPlayerCmd(['randomflow', 'startbatch']);
@@ -2571,7 +2548,7 @@
 				e.preventDefault();
 				tstPanelOpen('rejected');
 			});
-			// BUG FIX (Henk, caught live testing this step): the panel's own
+			// BUG FIX: the panel's own
 			// "Back" button used to be a literal port of SC-EXTMIP's own
 			// markup - onclick="tstPanelClose()" as an inline HTML attribute.
 			// That works on SC-EXTMIP's page because its whole script sits at
@@ -2594,7 +2571,7 @@
 				// queued stays visible in this same "rejected" list (it was
 				// manually overridden this one time, not permanently allowed -
 				// same intentional contradiction SC-EXTMIP's own "Use as Next"
-				// on its MIP Response list has, confirmed with Henk). Coming Up
+				// on its MIP Response list has. Coming Up
 				// Next updates on its own via the cometd subscription, same
 				// "no manual re-fetch needed" reasoning as the Replace Track
 				// button above.
@@ -2602,12 +2579,11 @@
 				tstPlayerCmd(['randomflow', 'queuetrack', trackId]);
 			});
 
-			// History panel (Henk, 25-09-2026, second round) - only the
+			// History panel - only the
 			// menu link (opens) and Back button (closes) now, same as
 			// Rejected Tracks just above. No delegated click handler for a
-			// "queue as next" button any more (removed THIRD round, Henk -
-			// see tstHistRowHtml's own comment for why) - History is
-			// look-only.
+			// "queue as next" button any more (see tstHistRowHtml's own
+			// comment for why) - History is look-only.
 			document.getElementById('tstMenuHistoryLink').addEventListener('click', function(e) {
 				e.preventDefault();
 				tstPanelOpen('history');
@@ -2626,7 +2602,7 @@
 				tstPlayerCmd(['randomflow', 'setfilter', this.value]);
 			});
 
-			// Auto Mix (Henk, 26-09-2026) - deliberately its OWN action,
+			// Auto Mix is deliberately its OWN action,
 			// 'setautomix', NOT the startmix/stopmix pair the dedicated
 			// "Start New Mix" icon button uses. First version of this
 			// toggle reused startmix for "Enabled", which meant flipping
@@ -2647,8 +2623,8 @@
 				document.getElementById('tstAutoMixLamp').style.background = (this.value === '1') ? '#3fb950' : '#f04747';
 			});
 
-			// tstAutoMixInfoIcon click + #tstMixSettings toggle - Henk,
-			// 26-09-2026: wired via addEventListener from inside this
+			// tstAutoMixInfoIcon click + #tstMixSettings toggle are
+			// wired via addEventListener from inside this
 			// closure, NOT the inline onclick="tstToggleInfo(this)"/
 			// ontoggle="tstDetailsToggle(...)" this markup originally had
 			// (ported too literally from SC-EXTMIP, whose own script is
@@ -2660,14 +2636,22 @@
 			document.getElementById('tstAutoMixInfoIcon').addEventListener('click', function() {
 				tstToggleInfo(this);
 			});
+			// tstMixSettingsInfoIcon sits inside <summary>, whose own
+			// default click action toggles the <details> open/closed -
+			// preventDefault/stopPropagation keep a click on the icon from
+			// also collapsing or expanding the Mix Settings panel.
+			document.getElementById('tstMixSettingsInfoIcon').addEventListener('click', function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				tstToggleInfo(this);
+			});
 			document.getElementById('tstMixSettings').addEventListener('toggle', function() {
 				tstDetailsToggle(this, 'tst_mixsettings_open');
 			});
 
 			// Wobble/Max Playcount/Artist Cooldown/Album Cooldown sliders
-			// (Henk, 25-09-2026 - THIRD round added the first three,
-			// FOURTH round turned Max Playcount into one too, see its own
-			// markup comment). Shared wiring since all four now work the
+			// (see Max Playcount's own markup comment for why it became a
+			// slider too). Shared wiring since all four now work the
 			// same way: 'input' fires continuously while dragging (used
 			// only to update the live numeric readout next to each
 			// slider, purely client-side), 'change' fires once when the
@@ -2703,13 +2687,12 @@
 				function(v) { return (parseInt(v, 10) === TST_MAXPLAYCOUNT_SLIDER_MAX) ? '' : v; }
 			);
 
-			// Henk, 25-09-2026, FOURTH round - "ik hoef ook maar iets de
-			// slider aan te raken en hij verspringt": a touchscreen's
+			// A touchscreen's
 			// native <input type=range> jumps its value straight to
 			// wherever a finger taps the track, not just the handle - an
 			// imprecise or accidental touch silently changes a real
-			// setting. Henk pointed at SC-EXTMIP's own liveview.html,
-			// which hit this exact same problem and already worked
+			// setting. SC-EXTMIP's own liveview.html hit this exact same
+			// problem and already worked
 			// through two failed fixes before landing on this one (see
 			// that page's own comment for the full blow-by-blow):
 			// touch-action alone (the CSS rule on .tstSettingRow
@@ -2733,8 +2716,8 @@
 			// change events are dispatched by hand so tstWireRangeSlider's
 			// own listeners above keep firing exactly as before - only
 			// the touch layer changed underneath them. Mouse/click on
-			// desktop is untouched - Henk only reported this on a
-			// touchscreen, same as SC-EXTMIP's own fix.
+			// desktop is untouched - this only affects touchscreens,
+			// same as SC-EXTMIP's own fix.
 			function tstScrollParent(el) {
 				var node = el.parentElement;
 				while (node && node !== document.body) {

@@ -3,8 +3,8 @@ RANDOMFLOW
 	NL	Random Flow
 
 RANDOMFLOW_DESC
-	EN	Throwaway test harness: calls TrackSelector.pm directly against the live library.db/persist.db and logs the results.
-	NL	Wegwerp-testplugin: roept TrackSelector.pm rechtstreeks aan tegen de draaiende library.db/persist.db en logt de resultaten.
+	EN	Dynamic music-mixing plugin: builds and sustains a continuous mix from your library, with per-player filters, artist/album weighting and cooldowns, Batch and Album Mix modes, and Don't Stop The Music integration.
+	NL	Dynamische muziekmix-plugin: bouwt en onderhoudt een doorlopende mix vanuit je bibliotheek, met per-speler filters, artiest/album-weging en cooldowns, Batch- en Album Mix-modi, en Don't Stop The Music-integratie.
 
 PLUGIN_RANDOMFLOW_GLOBAL_SETTINGS
 	EN	Random Flow
@@ -277,3 +277,11 @@ PLUGIN_RANDOMFLOW_JIVE_AUTOMIX
 PLUGIN_RANDOMFLOW_JIVE_NOFILTER
 	EN	No filter
 	NL	Geen filter
+
+PLUGIN_RANDOMFLOW_USAGEGUIDE
+	EN	Usage Guide
+	NL	Gebruiksaanwijzing
+
+PLUGIN_RANDOMFLOW_USAGEGUIDE_DESC
+	EN	A walkthrough of the Live page - Auto Mix, Mix Settings, the queue and more.
+	NL	Een uitleg van de Live-pagina - Auto Mix, Mix Settings, de wachtrij en meer.

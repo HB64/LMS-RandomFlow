@@ -76,12 +76,11 @@ sub resolveFilterGenres {
     return [ grep { !$blocked{lc($_)} } @{ $filter->{genres} || [] } ];
 }
 
-# Resolves a player's chosen filter down to its artists list (added
-# 20-09-2026) - the substrings TrackSelector.pm's filterArtists
-# criterion should use. Unlike genres, there's no per-player quick-block
-# equivalent for this (not asked for) - it's just the filter's own list,
-# or [] if the filter id doesn't resolve to anything (none chosen, or
-# deleted since).
+# Resolves a player's chosen filter down to its artists list - the
+# substrings TrackSelector.pm's filterArtists criterion should use.
+# Unlike genres, there's no per-player quick-block equivalent for this -
+# it's just the filter's own list, or [] if the filter id doesn't
+# resolve to anything (none chosen, or deleted since).
 #
 # Same caller contract as resolveFilterGenres: an empty result here is
 # NOT automatically "no constraint" once combined with genreGroup in
@@ -97,16 +96,15 @@ sub resolveFilterArtists {
     return [ @{ $filter->{artists} || [] } ];
 }
 
-# Resolves a player's chosen filter down to its years list (added
-# 25-09-2026) - the normalized "YYYY" / "YYYY-YYYY" entries
-# TrackSelector.pm's yearRanges criterion should use. Same shape as
-# resolveFilterArtists above (no per-player quick-block equivalent here
-# either - Henk confirmed 25-09-2026 this stays filter-level only), just
-# a different field. Unlike resolveFilterArtists though, an empty result
-# here genuinely means "no year constraint" to TrackSelector.pm (years is
-# a hard AND, not an OR-widener like filterArtists) - see the design
-# notes on Settings/Basic.pm's `years` field and TrackSelector.pm's own
-# criteria docs for the full reasoning.
+# Resolves a player's chosen filter down to its years list - the
+# normalized "YYYY" / "YYYY-YYYY" entries TrackSelector.pm's yearRanges
+# criterion should use. Same shape as resolveFilterArtists above
+# (no per-player quick-block equivalent - this stays filter-level
+# only), just a different field. Unlike resolveFilterArtists though, an
+# empty result here genuinely means "no year constraint" to
+# TrackSelector.pm (years is a hard AND, not an OR-widener like
+# filterArtists) - see the design notes on Settings/Basic.pm's `years`
+# field and TrackSelector.pm's own criteria docs for the full reasoning.
 sub resolveFilterYears {
     my ($filters, $filterId) = @_;
 

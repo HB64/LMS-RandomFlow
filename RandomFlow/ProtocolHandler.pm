@@ -2,9 +2,8 @@ package Plugins::RandomFlow::ProtocolHandler;
 
 #
 # Lets RandomFlow's mix be picked as what Lyrion's own native
-# Alarm Clock plays - Henk uses SugarCube's own alarm option as his
-# actual wake-up alarm today and asked for the equivalent here
-# (20-09-2026). Modelled directly on SugarCube's own ProtocolHandler.pm
+# Alarm Clock plays, mirroring SugarCube's own alarm-playlist option.
+# Modelled directly on SugarCube's own ProtocolHandler.pm
 # (SC-EXTMIP build):
 #
 #   - Plugin.pm's getAlarmPlaylists() registers a placeholder URL,
@@ -33,7 +32,7 @@ package Plugins::RandomFlow::ProtocolHandler;
 # than the player's everyday one (its scalarm_filter pref, falling back
 # to the player's own filter if unset). This uses only the player's own
 # active filter for now - a separate alarm-only filter override can be
-# added later the same way if Henk wants that distinction.
+# added later the same way if that distinction is needed.
 #
 
 use strict;

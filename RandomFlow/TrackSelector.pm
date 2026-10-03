@@ -12,7 +12,7 @@ package TrackSelector;
 # so there is no candidate-list cap and no exhaustion risk: every call
 # searches the full eligible catalog fresh.
 #
-# DESIGN (agreed with Henk, 20-09-2026):
+# DESIGN:
 #   1. HARD constraints (must match, no exceptions) - mirrors
 #      recipes.xml's <constraint max="0">/<constraint cutoff="0">:
 #        - genreGroup:    track's genre must be one of the given list
@@ -23,16 +23,11 @@ package TrackSelector;
 #                          library - NOT just tracks this mix itself has
 #                          picked) - checked HARD, before any weighting, so a
 #                          "preferred" artist can never repeat sooner than
-#                          this just because of a high preference weight
-#                          (added 20-09-2026 after Henk pointed out the
-#                          same repeat-too-soon problem we saw in bliss-mixer
-#                          would otherwise resurface here; CHANGED 24-09-2026
-#                          from a day-based window - "not played in the last
-#                          N days" - to this track-count-based one - "not
-#                          among the last N tracks played" - Henk's own
-#                          request, since a fixed number-of-days window
-#                          behaves very differently depending on how much is
-#                          being played that day)
+#                          this just because of a high preference weight.
+#                          Track-count-based rather than a day-based "not
+#                          played in the last N days" window, since a fixed
+#                          number-of-days window behaves very differently
+#                          depending on how much is being played that day.
 #        - albumCooldownTracks: same idea as artistCooldownTracks above, but
 #                          for the track's ALBUM instead of its artist -
 #                          identified by Lyrion's own numeric album id
@@ -44,10 +39,7 @@ package TrackSelector;
 #                          artist come back sooner than their albums do -
 #                          e.g. artistCooldownTracks=20 + albumCooldownTracks
 #                          =100 means "this artist" can repeat after 20
-#                          tracks, but "this exact album" only after 100
-#                          (added 24-09-2026, Henk's own request - the
-#                          "artist may return, the album may not" case from
-#                          his 23-09-2026 message)
+#                          tracks, but "this exact album" only after 100.
 #        - maxPlaycount:  track's playCount (per playCountProvider) must be
 #                          <= this (undef = no limit)
 #        - playCountProvider: which playCount/lastPlayed source to use for
@@ -55,23 +47,21 @@ package TrackSelector;
 #                          albumCooldownTracks above -
 #                          'lyrion' (tracks_persistent), 'apc'
 #                          (alternativeplaycount), or 'both' (default) -
-#                          Henk confirmed 20-09-2026 that "both" means the
-#                          HIGHEST of the two values (never SUM - both
-#                          providers hook the same real playback events, so
-#                          summing would double-count), treating a source
-#                          with no data as simply absent rather than 0.
-#                          AUTO-DEGRADE (added 21-09-2026, widened
-#                          22-09-2026): a Lyrion version upgrade has now
-#                          TWICE briefly left persist.db in a state this
-#                          module couldn't fully use - first just APC's
-#                          own alternativeplaycount table missing, then
-#                          (22-09-2026) the whole ATTACHed 'p' connection
-#                          itself going stale after persist.db got
-#                          rebuilt out from under it, taking Lyrion's OWN
-#                          tracks_persistent table down too. Either way
-#                          this used to crash every query outright - "no
-#                          such table", mix refused to start, alarm
-#                          missed. Now every selectTracks() call checks
+#                          "both" means the HIGHEST of the two values
+#                          (never SUM - both providers hook the same real
+#                          playback events, so summing would double-count),
+#                          treating a source with no data as simply absent
+#                          rather than 0.
+#                          AUTO-DEGRADE: a Lyrion version upgrade can
+#                          briefly leave persist.db in a state this module
+#                          can't fully use - either just APC's own
+#                          alternativeplaycount table missing, or the whole
+#                          ATTACHed 'p' connection itself going stale after
+#                          persist.db gets rebuilt out from under it, taking
+#                          Lyrion's OWN tracks_persistent table down too.
+#                          Left unhandled this would crash every query
+#                          outright ("no such table", mix refused to
+#                          start). Instead every selectTracks() call checks
 #                          fresh whether alternativeplaycount AND
 #                          tracks_persistent each actually exist
 #                          (_apcAvailable()/_tracksPersistentAvailable()),
@@ -96,113 +86,104 @@ package TrackSelector;
 #        - excludeRatings: track's normalized 1-5 rating must NOT be one of these
 #        - excludeUrls:   track's own URL must not be one of these (e.g. to
 #                          avoid immediately re-picking the current/just-played seed)
-#        - genreGroup is ALWAYS a hard SQL filter, no exceptions - Henk
-#                          confirmed 20-09-2026 that a track outside the
-#                          selected genres must never be picked, full stop.
-#                          (This module briefly had a "Style"/genreStrictness
-#                          dial that turned genre into a soft preference
-#                          instead - removed the same day: once genre stays
-#                          hard no matter what, wobble below already covers
+#        - genreGroup is ALWAYS a hard SQL filter, no exceptions: a track
+#                          outside the selected genres must never be
+#                          picked, full stop. (This module briefly had a
+#                          "Style"/genreStrictness dial that turned genre
+#                          into a soft preference instead - removed once
+#                          it became clear that, with genre staying hard
+#                          no matter what, wobble below already covers
 #                          "how much randomness within the selection", so
 #                          Style had nothing left to do.)
-#        - filterArtists: a filter can ALSO name specific artists
-#                          (Henk, 20-09-2026) - a track matches the hard
-#                          filter if its genre is in genreGroup OR its
-#                          artist matches one of these (partial/substring
-#                          match, case-insensitive, so a collaboration
-#                          like "Ajna (5) & Dronny Darko" is included by
-#                          just naming "Ajna"). This is additive, not a
-#                          second hard AND-constraint: naming an artist
-#                          here means "also always include this artist,
-#                          regardless of genre" - confirmed with Henk,
-#                          who wants it exactly that way round. If
+#        - filterArtists: a filter can ALSO name specific artists - a
+#                          track matches the hard filter if its genre is
+#                          in genreGroup OR its artist matches one of
+#                          these (partial/substring match, case-insensitive,
+#                          so a collaboration like "Ajna (5) & Dronny
+#                          Darko" is included by just naming "Ajna"). This
+#                          is additive, not a second hard AND-constraint:
+#                          naming an artist here means "also always
+#                          include this artist, regardless of genre". If
 #                          BOTH genreGroup and filterArtists are empty,
 #                          this is still "no constraint" (whole library),
 #                          same as genreGroup alone always was.
 #        - yearRanges:    a filter can ALSO restrict which years a track
-#                          may be from (Henk, 25-09-2026 - a gap noticed
-#                          while designing the Live page: discussed
-#                          earlier but never actually built). Each entry
-#                          is either a single year ("1985") or an
-#                          inclusive range ("1980-1989"); a track matches
-#                          if its year falls in ANY of the given entries
-#                          (OR between entries), but - UNLIKE
-#                          filterArtists above - this is a genuinely
-#                          SEPARATE hard AND-constraint on top of the
-#                          genreGroup/filterArtists match, not an
-#                          OR-widener (Henk confirmed 25-09-2026: "AND
-#                          klinkt het meest logisch"). Empty/absent means
-#                          no year restriction at all, same "no
-#                          constraint" convention as everything else
-#                          here. Resolved from the active filter's
-#                          `years` field the same way genreGroup/
+#                          may be from. Each entry is either a single year
+#                          ("1985") or an inclusive range ("1980-1989"); a
+#                          track matches if its year falls in ANY of the
+#                          given entries (OR between entries), but -
+#                          UNLIKE filterArtists above - this is a
+#                          genuinely SEPARATE hard AND-constraint on top
+#                          of the genreGroup/filterArtists match, not an
+#                          OR-widener (AND is the more logical combination
+#                          here). Empty/absent means no year restriction
+#                          at all, same "no constraint" convention as
+#                          everything else here. Resolved from the active
+#                          filter's `years` field the same way genreGroup/
 #                          filterArtists are - see Settings::Util::
 #                          resolveFilterYears and Settings/Basic.pm's own
 #                          design notes on the `years` field for the
 #                          text-entry syntax and parsing/validation.
 #   2. From the tracks surviving those hard constraints, a random pool of
-#      up to poolSize (Henk's "ask size", default 300) is drawn straight
-#      from SQLite (ORDER BY RANDOM()). Raised from a fixed 50 to a
-#      configurable 300 default on 20-09-2026: with a very broad filter the
-#      full hard-filtered set can be thousands of tracks, and a sample of
-#      just 50 made preferredWeight barely noticeable in practice. 300 is
-#      still trivially fast (an unfiltered ~35,000-row query measured well
-#      under half a second).
+#      up to poolSize ("ask size", default 300) is drawn straight from
+#      SQLite (ORDER BY RANDOM()). 300 rather than a smaller fixed number:
+#      with a very broad filter the full hard-filtered set can be
+#      thousands of tracks, and a small sample makes preferredWeight
+#      barely noticeable in practice. 300 is still trivially fast (an
+#      unfiltered ~35,000-row query measured well under half a second).
 #   3. SOFT weighting is then applied in plain Perl on that pool -
 #      NOT as a mathematical formula inside the SQL query (deliberately
-#      simple, per Henk: SugarCube's own preferred/less-preferred-artist
-#      fields are the model, not a weighted-sampling formula). Since
-#      24-09-2026 the actual per-artist multiplier matches SugarCube's own
-#      documented weight scale exactly (confirmed with Henk, same design
-#      as SugarCube's Artist Weighting, README section "How It Works -
-#      Artist Weighting and Floating Wobble"):
+#      simple: SugarCube's own preferred/less-preferred-artist fields are
+#      the model, not a weighted-sampling formula). The per-artist
+#      multiplier matches SugarCube's own documented weight scale exactly
+#      (same design as SugarCube's Artist Weighting, README section "How
+#      It Works - Artist Weighting and Floating Wobble"):
 #        - preferredArtists / preferredWeight (1-5):    multiplier = weight + 1
 #          (weight 1 -> ~2x as likely, weight 5 -> ~6x as likely)
 #        - lessPreferredArtists / lessPreferredWeight (1-5): multiplier = 1 / (weight + 1)
 #          (weight 1 -> ~2x LESS likely (half), weight 5 -> ~6x less likely)
 #        - everyone/everything else: weight 1 (neutral)
-#      A raw weight value equal to the multiplier itself (the pre-24-09-2026
-#      behaviour) meant the slider's lowest useful setting (1) had NO effect
-#      at all for either field, since 1 == neutral - that didn't match
-#      SugarCube's own behaviour and is why this was revisited.
+#      (A raw weight value equal to the multiplier itself would mean the
+#      slider's lowest useful setting (1) had NO effect at all for either
+#      field, since 1 == neutral - that wouldn't match SugarCube's own
+#      behaviour, hence the "+1"/"1/(weight+1)" form above.)
 #      Those weights are combined per track, then "wobble" (0-100, default
-#      0 = "Tight", confirmed 20-09-2026 - inspired by SugarCube's Wobble,
-#      reinterpreted since we have no ranked similarity list to pick a
-#      window from) blends that combined weight towards 1 for everyone as
-#      wobble rises - at 0 the configured weights count fully, at 100
-#      they're ignored and the pick is pure random (but always still from
-#      within the hard genre/artist-block/cooldown-filtered pool - wobble
-#      never lets a track outside those hard constraints in). When nothing
-#      is actually weighted (no preferred/less-preferred artists
-#      configured), every track already has weight 1 and wobble has
-#      nothing to flatten - that is expected, not a gap (Henk confirmed
-#      20-09-2026).
+#      0 = "Tight" - inspired by SugarCube's Wobble, reinterpreted here
+#      since there is no ranked similarity list to pick a window from)
+#      blends that combined weight towards 1 for everyone as wobble rises
+#      - at 0 the configured weights count fully, at 100 they're ignored
+#      and the pick is pure random (but always still from within the hard
+#      genre/artist-block/cooldown-filtered pool - wobble never lets a
+#      track outside those hard constraints in). When nothing is actually
+#      weighted (no preferred/less-preferred artists configured), every
+#      track already has weight 1 and wobble has nothing to flatten - that
+#      is expected, not a gap.
 #      A track is then picked from the pool with probability proportional
 #      to its (wobble-adjusted) weight, without replacement, until `count`
 #      tracks are chosen.
 #
-# RATING NORMALIZATION (agreed with Henk, 20-09-2026): Henk's data has a
-# mix of two scales in tracks_persistent.rating - mostly already 1-5,
-# but a couple of tracks at 99/100 (Lyrion's native 0-100 star scale).
-# We always normalize to 1-5: a value already <=5 is used as-is; a
-# value >5 is divided by 20 and rounded to the nearest whole number.
+# RATING NORMALIZATION: library data can mix two scales in
+# tracks_persistent.rating - mostly already 1-5, but occasionally a
+# track at 99/100 (Lyrion's native 0-100 star scale). This always
+# normalizes to 1-5: a value already <=5 is used as-is; a value >5 is
+# divided by 20 and rounded to the nearest whole number.
 #
 # NOT yet included here (still to be designed/ported separately):
 #   - album repeat-spacing (SugarCube's AlbumTracker) - now covered via
-#     albumCooldownTracks (see the design notes above), added 24-09-2026,
-#     same track-count-based approach as artistCooldownTracks
+#     albumCooldownTracks (see the design notes above), same
+#     track-count-based approach as artistCooldownTracks
 #   - the full recipes.xml-style DSL (overlap()/abs()/strlen()/seed
 #     cross-references, RecipeFilterEngine.pm's existing constraint/
 #     modifier evaluator) - this module only implements the specific,
 #     agreed-on fields above; RecipeFilterEngine.pm's more general
 #     parser can be wired in on top of this later if needed.
 #
-# ALBUM MODE (Henk, 29-09-2026): selectAlbums() below is the album-mix
-# counterpart to selectTracks() - same hard constraints/weighting, but
-# candidate tracks are collapsed to distinct albums (one surviving track
-# is enough, no minimum-match-count) and weighted by the album's own
-# contributor instead of a track's. Once an album is picked, ALL of its
-# tracks come back, unfiltered, in disc/track order.
+# ALBUM MODE: selectAlbums() below is the album-mix counterpart to
+# selectTracks() - same hard constraints/weighting, but candidate tracks
+# are collapsed to distinct albums (one surviving track is enough, no
+# minimum-match-count) and weighted by the album's own contributor
+# instead of a track's. Once an album is picked, ALL of its tracks come
+# back, unfiltered, in disc/track order.
 #
 
 use strict;
@@ -216,8 +197,8 @@ my $log = Slim::Utils::Log->addLogCategory({
     'defaultLevel' => 'INFO',
 });
 
-# Adjust this if your persist.db ever lives somewhere else inside the
-# container - this is the path confirmed working on Henk's server.
+# Adjust this if persist.db ever lives somewhere else inside the
+# container.
 use constant PERSIST_DB_PATH => '/config/prefs/persist.db';
 
 # Default for poolSize ("ask size") when the caller doesn't specify one.
@@ -226,25 +207,25 @@ use constant DEFAULT_POOL_SIZE => 300;
 
 # Hard cap on how many rows findRejectedTracks() below ever returns for
 # actual display, regardless of how many tracks really got excluded -
-# Henk confirmed 25-09-2026 that an uncapped list is impractical at a
-# poolSize of 300 (SC's own "MIP Response" list has the same problem,
-# per its own comment - "can run to dozens of rows"). The exact total
-# is still reported separately (see totalCount below) so the UI can
-# show "and N more" rather than silently truncating.
+# an uncapped list is impractical at a poolSize of 300 (SC's own "MIP
+# Response" list has the same problem, per its own comment - "can run
+# to dozens of rows"). The exact total is still reported separately
+# (see totalCount below) so the UI can show "and N more" rather than
+# silently truncating.
 use constant REJECTED_LIST_CAP => 100;
 
-# findRecentlyPlayed() below (Live page's "History" panel, added
-# 25-09-2026, Henk) - default and hard-cap for the "how many recently
-# played tracks to show" setting (Settings/Basic.pm's historyDisplayCount
-# pref). Unlike REJECTED_LIST_CAP, the effective count here IS user-
-# configurable (the whole point of the setting) - MAX_HISTORY_DISPLAY_COUNT
-# is only a safety clamp against an impractically large saved value,
-# same "unbounded is impractical" reasoning as REJECTED_LIST_CAP's own
+# findRecentlyPlayed() below (Live page's "History" panel) - default
+# and hard-cap for the "how many recently played tracks to show"
+# setting (Settings/Basic.pm's historyDisplayCount pref). Unlike
+# REJECTED_LIST_CAP, the effective count here IS user-configurable
+# (the whole point of the setting) - MAX_HISTORY_DISPLAY_COUNT is only
+# a safety clamp against an impractically large saved value, same
+# "unbounded is impractical" reasoning as REJECTED_LIST_CAP's own
 # comment. Deliberately NOT a three-state pref like historyLimit's own
-# undef/''/N (see Settings/Basic.pm) - "no limit" doesn't mean anything
-# safe here (that would be every track Lyrion has ever recorded a
-# lastPlayed for), so blank/unset just falls back to the default and
-# there is no separate "unlimited" state at all.
+# undef/''/N (see Settings/Basic.pm) - "no limit" doesn't mean
+# anything safe here (that would be every track Lyrion has ever
+# recorded a lastPlayed for), so blank/unset just falls back to the
+# default and there is no separate "unlimited" state at all.
 use constant DEFAULT_HISTORY_DISPLAY_COUNT => 20;
 use constant MAX_HISTORY_DISPLAY_COUNT     => 200;
 
@@ -261,20 +242,19 @@ my %lastTableAvailable;
 #   genreGroup        => arrayref of genre names (required - pass all
 #                         genres to effectively disable genre filtering).
 #                         ALWAYS a hard filter - a track outside this list
-#                         is never picked, no exceptions (Henk confirmed
-#                         20-09-2026; this module briefly had a "Style"
-#                         soft-genre mode, removed the same day).
+#                         is never picked, no exceptions (this module
+#                         briefly had a "Style" soft-genre mode, removed).
 #   filterArtists     => arrayref of artist-name substrings (optional) -
 #                         a track whose artist contains one of these
 #                         (case-insensitive) is included REGARDLESS of
 #                         genreGroup - additive, not a second AND
-#                         constraint (Henk confirmed 20-09-2026).
+#                         constraint.
 #   yearRanges        => arrayref of "YYYY" or "YYYY-YYYY" entries
 #                         (optional) - a track's year must match at least
 #                         one of these. UNLIKE filterArtists, this IS a
 #                         second, independent hard AND-constraint on top
-#                         of genreGroup/filterArtists (Henk confirmed
-#                         25-09-2026). Empty/absent = no year constraint.
+#                         of genreGroup/filterArtists. Empty/absent = no
+#                         year constraint.
 #   artistBlock       => arrayref of artist names to hard-exclude (optional)
 #   artistCooldownTracks => integer number of tracks; any artist who
 #                         appears among the N most-recently-played tracks
@@ -301,7 +281,7 @@ my %lastTableAvailable;
 #                         count fully). 100 ("Loose") ignores all weights,
 #                         picking uniformly at random from the pool. See
 #                         point 3 in the design notes above.
-#   poolSize          => integer, default DEFAULT_POOL_SIZE (300) - Henk's
+#   poolSize          => integer, default DEFAULT_POOL_SIZE (300) - the
 #                         "ask size": how many candidates to sample before
 #                         the weighted pick.
 #   count             => how many tracks to return, default 1
@@ -335,8 +315,8 @@ sub selectTracks {
     my $poolSize = defined $criteria{poolSize} ? $criteria{poolSize} : DEFAULT_POOL_SIZE;
 
     # Genre is always a hard SQL filter - one plain query, no soft/tiered
-    # mode (that existed briefly as "Style"/genreStrictness, removed
-    # 20-09-2026 - see the design notes at the top of this file).
+    # mode (that existed briefly as "Style"/genreStrictness, removed -
+    # see the design notes at the top of this file).
     my ($sql, @bindValues) = _buildPoolQuery(%criteria, poolSize => $poolSize, apcAvailable => $apcAvailable, tpAvailable => $tpAvailable);
     my $pool = eval { $dbh->selectall_arrayref($sql, { Slice => {} }, @bindValues) };
     if ($@) {
@@ -366,11 +346,11 @@ sub selectTracks {
 #   { albumId, albumTitle, albumArtist, albumYear,
 #     tracks => [ { url, title, artist, albumId }, ... ] }
 #
-# Album Mix mode (Henk, 29-09-2026): the album-mix counterpart to
+# Album Mix mode: the album-mix counterpart to
 # selectTracks() above. Same %criteria and hard constraints, but
 # candidate TRACKS are collapsed to distinct ALBUMS (one surviving
 # track is enough to make the album a candidate - no minimum-match-
-# count, Henk confirmed). Weighting (preferredArtists/wobble) uses the
+# count). Weighting (preferredArtists/wobble) uses the
 # album's own contributor (Lyrion's "album artist"), not whichever
 # track happened to survive the filter. Once an album is picked, ALL of
 # its tracks come back, unfiltered, in disc/track order - the point is
@@ -442,8 +422,8 @@ sub selectAlbums {
 
 # findRejectedTracks(%criteria) -> { tracks => arrayref, totalCount => N }
 #
-# For the Live page's "Afgewezen tracks" panel (added 25-09-2026, Henk).
-# NOT the same thing as SC's "MIP Response" - that's the surviving
+# For the Live page's "Afgewezen tracks" panel. NOT the same thing as
+# SC's "MIP Response" - that's the surviving
 # CANDIDATE POOL (matched the hard filters, just not the one auto-picked
 # this round). This is the genuine opposite: tracks that DID match the
 # base genre/filterArtists criteria but got excluded by one of the SOFT
@@ -458,8 +438,8 @@ sub selectAlbums {
 # just the first one found - a track can rightly show up with more than
 # one reason (e.g. both "Artist cooldown" and "Max playcount").
 #
-# Capped at REJECTED_LIST_CAP rows for the actual list (Henk confirmed
-# 25-09-2026: unbounded is impractical at a poolSize of 300), but
+# Capped at REJECTED_LIST_CAP rows for the actual list (unbounded is
+# impractical at a poolSize of 300), but
 # totalCount is always the real, uncapped count, via a separate
 # COUNT(DISTINCT ...) query - so the UI can say "and N more" instead of
 # just cutting the list off silently.
@@ -583,8 +563,7 @@ sub findRejectedTracks {
         return { tracks => [], totalCount => 0 };
     }
 
-    # t.coverid, added 25-09-2026 (Henk's request - "een hoesje erbij zou
-    # mooi zijn"): a real column on tracks (confirmed against the real
+    # t.coverid: a real column on tracks (confirmed against the real
     # slimserver source, Slim::Schema::Track - accessor is coverid(),
     # backed by the plain _coverid column), but LAZILY computed - it can
     # still read NULL for a track that has real embedded/folder artwork
@@ -635,9 +614,9 @@ sub findRejectedTracks {
 
 # findRecentlyPlayed(%args) -> { tracks => arrayref, totalCount => N, unavailable => 0|1 }
 #
-# For the Live page's "History" panel (added 25-09-2026, Henk). NOT a
-# port of SC-EXTMIP's own History panel - Henk agreed 25-09-2026 this
-# should genuinely diverge: SC's History is its OWN queue-time-logged
+# For the Live page's "History" panel. NOT a port of SC-EXTMIP's own
+# History panel - this genuinely diverges: SC's History is its OWN
+# queue-time-logged
 # SQLite table (SaveHistory records a track the moment MixRunner ADDS it
 # to the queue, not when it's actually played), and it never stores a
 # track id at all - confirmed by reading Breakout.pm's GrabHistory/
@@ -726,9 +705,9 @@ sub findRecentlyPlayed {
 
 # lastPlayedForTracks(@trackIds) -> { trackId => lastPlayedEpoch, ... }
 #
-# For the Live page's new Now Playing/Up Next stat lines (added 25-09-2026,
-# THIRD round, Henk - "het uitgebreidere tekstveld met ratings, last played
-# e.d. zoals bij SC"). Genre/rating/playcount all ride along on the page's
+# For the Live page's Now Playing/Up Next stat lines - these show a
+# richer text field with ratings, last played, etc., similar to SC's.
+# Genre/rating/playcount all ride along on the page's
 # existing cometd status push (Lyrion's own per-track tags: g/R/O) - "last
 # played" is the one field with no tag at all, confirmed against the real
 # LMS source (Slim::Control::Queries %tagMap - it's a blank line in that
@@ -775,7 +754,7 @@ sub lastPlayedForTracks {
 
 # albumIdForUrl($url) -> numeric album id, or undef
 #
-# Album Mix mode (Henk, 29-09-2026): resolves which album a given
+# Album Mix mode: resolves which album a given
 # queued/playing track URL belongs to - used by MixRunner to exclude
 # the currently playing album when picking or replacing the next one.
 sub albumIdForUrl {
@@ -812,7 +791,7 @@ sub _attachPersistDb {
 # schema. Returns 1/0 when the check itself worked, or undef when even
 # THAT failed (e.g. "no such table: p.sqlite_master") - which doesn't
 # mean the table is missing, it means the ATTACHed connection itself is
-# unusable right now (seen for real 22-09-2026: persist.db got rebuilt
+# unusable right now (this can happen when persist.db gets rebuilt
 # out from under an already-open connection during a Lyrion upgrade).
 # _tableAvailable() below is what tells those two cases apart and
 # recovers from the second one.
@@ -829,9 +808,8 @@ sub _tableExistsInP {
 }
 
 # Checks whether a given table actually exists in the attached
-# persist.db right now (added 21-09-2026 for alternativeplaycount,
-# widened 22-09-2026 to any persist.db table - see the AUTO-DEGRADE
-# design note at the top of this file). Deliberately NOT cached for the
+# persist.db right now, for any persist.db table - see the AUTO-DEGRADE
+# design note at the top of this file. Deliberately NOT cached for the
 # process lifetime - re-checked on every selectTracks() call, which is
 # what lets things come back automatically once persist.db is healthy
 # again, without needing this plugin restarted. Cheap: a single indexed
@@ -930,9 +908,9 @@ sub _lastPlayedExpr { return _providerExpr($_[0], 'tp.lastPlayed', 'apc.lastPlay
 # plain upfront query, reused as a simple exclusion list - not a
 # per-row subquery - so it stays fast and easy to follow.
 #
-# CHANGED 24-09-2026 (Henk's request) from a day-based time window
-# ("lastPlayed >= cutoff") to this track-count window ("the N most
-# recent lastPlayed timestamps, whichever artists own those tracks").
+# Uses a track-count window ("the N most recent lastPlayed timestamps,
+# whichever artists own those tracks") rather than a day-based time
+# window ("lastPlayed >= cutoff").
 # A plain time window behaves very differently depending on how much
 # gets played on a given day; counting back a fixed number of tracks
 # instead gives a consistent-feeling cooldown regardless of how busy
@@ -983,12 +961,12 @@ sub _recentlyPlayedArtists {
     return $rows || [];
 }
 
-# Same as _recentlyPlayedArtists above, but for albums (albumCooldownTracks,
-# added 24-09-2026) - identified by Lyrion's own numeric t.album id, NEVER
-# by album title, so two different artists' albums that happen to share a
-# name are never confused with each other. No JOIN needed for this one
-# (album is a plain column on tracks itself), unlike artist which needs the
-# contributors table for its display name.
+# Same as _recentlyPlayedArtists above, but for albums
+# (albumCooldownTracks) - identified by Lyrion's own numeric t.album id,
+# NEVER by album title, so two different artists' albums that happen to
+# share a name are never confused with each other. No JOIN needed for
+# this one (album is a plain column on tracks itself), unlike artist
+# which needs the contributors table for its display name.
 sub _recentlyPlayedAlbums {
     my ($dbh, $trackCount, $provider, $apcAvailable, $tpAvailable) = @_;
 
@@ -1241,8 +1219,8 @@ sub _buildPoolQuery {
     # --- HARD constraints ---
 
     # genreGroup is always a hard filter - see the design notes at the
-    # top of this file for why (Henk confirmed 20-09-2026). filterArtists
-    # (added 20-09-2026) widens this with an OR, not a second AND: a
+    # top of this file for why. filterArtists
+    # widens this with an OR, not a second AND: a
     # track is in if its genre matches OR its artist matches one of
     # these substrings - naming an artist here always includes them,
     # genre or not. Matching is case-insensitive (COLLATE NOCASE) and by
@@ -1267,10 +1245,10 @@ sub _buildPoolQuery {
         push @bind, @orBind;
     }
 
-    # yearRanges (added 25-09-2026) is a SEPARATE hard AND-constraint,
-    # not folded into the genre/filterArtists OR-block above - see the
-    # design notes at the top of this file for why (Henk: "AND klinkt
-    # het meest logisch").
+    # yearRanges is a SEPARATE hard AND-constraint,
+    # not folded into the genre/filterArtists OR-block above - AND is
+    # the more logical combination here (see the design notes at the
+    # top of this file).
     my ($yearWhere, @yearBind) = _yearWhereClause($criteria{yearRanges});
     if ($yearWhere) {
         push @where, $yearWhere;
@@ -1285,8 +1263,8 @@ sub _buildPoolQuery {
 
     # albumBlock is only ever populated by the albumCooldownTracks merge in
     # selectTracks() above (see the design notes at the top of this file) -
-    # unlike artistBlock there's no manual "always block this album" field,
-    # Henk didn't ask for one. Matched by numeric album id, not title.
+    # unlike artistBlock there's no manual "always block this album" field.
+    # Matched by numeric album id, not title.
     my $albumBlock = $criteria{albumBlock} || [];
     if (@$albumBlock) {
         push @where, '(t.album IS NULL OR t.album NOT IN (' . join(',', ('?') x @$albumBlock) . '))';
