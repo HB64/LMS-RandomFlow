@@ -1,6 +1,12 @@
-# Random Flow
+# Random Flow 1.0
 
-A dynamic music-mixing plugin for [Lyrion Music Server](https://lyrion.org/) (formerly Logitech Media Server). Random Flow builds and sustains a continuous, filtered mix for a player - picking tracks (or whole albums) from your library based on per-player rules, and keeping the queue topped up automatically as you listen.
+First public release.
+
+Random Flow is a dynamic music-mixing plugin for [Lyrion Music Server](https://lyrion.org/) (formerly Logitech Media Server). It builds and sustains a continuous, filtered mix for a player - picking tracks (or whole albums) from your library based on per-player rules, and keeping the queue topped up automatically as you listen.
+
+## Why another mixing plugin?
+
+To be clear up front: this isn't about SugarCube or MusicIP being a problem - I'm actually the candidate to take over SugarCube's own maintenance, and MusicIP and Bliss are both very good at what they do, acoustic-similarity-based mixing. For my own listening, though, that approach kept giving me mixes that didn't match what I had in mind. Random Flow takes a different, rule-based approach instead - filters, artist weighting, cooldowns - built directly on Lyrion's own library database rather than an external similarity engine. Not a replacement for SugarCube/MusicIP, just a different tool for a different preference.
 
 Modeled on [SugarCube](https://github.com/HB64/lms-sugarcube)'s mixing approach, rebuilt from scratch around a SQL-based track selector.
 
@@ -33,14 +39,22 @@ Modeled on [SugarCube](https://github.com/HB64/lms-sugarcube)'s mixing approach,
 2. Unzip it into your Lyrion `Plugins` folder, so you end up with a `Plugins/RandomFlow/` folder containing `Plugin.pm`.
 3. Restart Lyrion.
 
-## Requirements
+## Usage
 
-Logitech Media Server / Lyrion Music Server 7.9 or later.
+See the [Usage Guide](https://github.com/HB64/LMS-RandomFlow/blob/main/USAGE.md) for a full walkthrough of the Live page - Auto Mix, Mix Settings, the queue and more.
 
 ## Limitations
 
 - **Artist/Album cooldowns need a large, varied library to work well.** A cooldown excludes an artist (or album) entirely for N tracks after it last played. The smaller or less varied your library (or the narrower your active filter), the sooner that exclusion starts eating into most of what's left to pick from - so on a small collection you'll hit the practical ceiling of what the cooldown can do much faster than on a large one.
 
+## Requirements
+
+Logitech Media Server / Lyrion Music Server 7.9 or later.
+
+## Translations
+
+Currently available in English and Dutch. Translations for other languages are welcome - open a pull request against `strings.txt` in the repo.
+
 ## License
 
-See [LICENSE](LICENSE).
+GPLv2 - see [LICENSE](https://github.com/HB64/LMS-RandomFlow/blob/main/LICENSE).
