@@ -193,6 +193,10 @@
 			font-family:Arial, Helvetica, sans-serif; padding:0.5em 1.5em 96px 1.5em;
 			background:var(--background-color, #fff); color:var(--text-color, #333);
 		}
+		[%# A blurred/darkened full-page cover backdrop was tried here     %]
+		[%# (matching Material's own Now Playing full-screen view) and      %]
+		[%# reverted - didn't read as an improvement in real testing, see   %]
+		[%# this file's edit history if it's ever worth revisiting.         %]
 		[%# The connection-status area is kept out of the visible page: the  %]
 		[%# <h1> page title, the "Player: ..." line and the connection      %]
 		[%# status badge are all gone from the visible page now (see the    %]
@@ -409,7 +413,17 @@
 		[%# it (see that handler's own comment for why touch-action alone, %]
 		[%# without also handling the touch events by hand, was tried and  %]
 		[%# failed on SC-EXTMIP first).                                   %]
-		.tstSettingRow input[type="range"] { flex:1; touch-action:none; }
+		[%# The Mix Settings sliders pick up the same                     %]
+		[%# per-cover color as the progress bar. accent-color is the      %]
+		[%# plain CSS property that styles a native range input's filled  %]
+		[%# track + thumb together, no vendor-prefixed pseudo-elements    %]
+		[%# needed - supported in every browser this page already        %]
+		[%# targets. --tst-accent-color is set/updated from JS in         %]
+		[%# tstUpdateCoverColor() (and its own no-cover fallback) further %]
+		[%# down this script; the var(...) fallback here only matters     %]
+		[%# before that first runs (e.g. this stylesheet rendering        %]
+		[%# before any JS has executed at all).                          %]
+		.tstSettingRow input[type="range"] { flex:1; touch-action:none; accent-color:var(--tst-accent-color, rgb(25,118,210)); }
 		.tstSettingValue { flex:none; min-width:60px; text-align:right; opacity:0.85; font-size:0.9em; }
 		[%# Info-icon/popover widget for the Auto Mix row below, ported     %]
 		[%# from SC-EXTMIP's own sc-info-wrap/sc-info-                     %]
@@ -2037,7 +2051,14 @@
 					else {
 						rc = avgR; gc = avgG; bc = avgB;
 					}
-					if (tstIsGrey(avgR, avgG, avgB) || tstIsGrey(rc, gc, bc)) {
+					// Only the picked color itself is checked for greyness - the
+					// whole-image average isn't, since a mostly black/white cover
+					// with just one strong color accent (e.g. monochrome photography
+					// with a colored graphic element) averages out grey across the
+					// whole image even though the bucket scan above found a clear,
+					// well-scored color worth using. Checking the average too would
+					// veto that good pick and fall back to blue for no reason.
+					if (tstIsGrey(rc, gc, bc)) {
 						rc = 25; gc = 118; bc = 210;
 					}
 					else {
@@ -2048,6 +2069,18 @@
 					fill.style.background = 'rgb(' + rc + ',' + gc + ',' + bc + ')';
 					var track = document.getElementById('tstNpProgressTrack');
 					if (track) { track.style.background = 'rgba(' + rc + ',' + gc + ',' + bc + ',0.25)'; }
+					// The Mix Settings sliders (Wobble/Max
+					// Playcount/Artist Cooldown/Album Cooldown) pick up the
+					// same extracted cover color as the progress bar, via
+					// the CSS "accent-color" property (styles a native
+					// range input's filled track + thumb in one go, no
+					// vendor-prefixed pseudo-elements needed - supported in
+					// every browser this page already targets). Set as a
+					// CSS custom property on the root element so the plain
+					// CSS rule below (.tstSettingRow input[type="range"])
+					// can reference it, rather than reaching into each
+					// slider's own style here.
+					document.documentElement.style.setProperty('--tst-accent-color', 'rgb(' + rc + ',' + gc + ',' + bc + ')');
 				}
 				catch (e) {}
 			}
@@ -2264,6 +2297,11 @@
 					var track = document.getElementById('tstNpProgressTrack');
 					if (fill)  { fill.style.background = 'rgb(25,118,210)'; }
 					if (track) { track.style.background = ''; }
+					// Same default-blue fallback for the sliders' own
+					// accent-color, matching tstUpdateCoverColor's own
+					// fallback above - keeps the sliders from staying
+					// tinted with whatever track played before this one.
+					document.documentElement.style.setProperty('--tst-accent-color', 'rgb(25,118,210)');
 				}
 
 				tickerElapsed  = (typeof data.time === 'number') ? data.time : 0;
