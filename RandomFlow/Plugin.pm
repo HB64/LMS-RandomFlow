@@ -160,13 +160,21 @@ sub initPlugin {
     # exactly the same, since that watcher reacts to the pref changing
     # however it changed.
     Slim::Control::Request::addDispatch(['randomflow', 'setautomix', '_value'], [1, 0, 0, \&_handleSetAutoMix]);
-    # Settings entry for Jive clients (e.g. Squeezeclient); Auto Mix reuses setautomix above.
+    # Settings entry for Jive clients (e.g. Squeezeclient, jivelite). The
+    # icon key here is 'icon-id', NOT 'icon' (confirmed against SugarCube's
+    # own working registerPluginMenu call, which sets it both on the item
+    # itself and again inside 'window' below) - Slim::Plugin::Base would
+    # normally attach install.xml's <icon> to this menu entry automatically
+    # via _pluginDataFor('icon'), but this throwaway Plugin.pm doesn't
+    # inherit that base class, so nothing ever fills it in and both 'icon-id'
+    # spots have to be hardcoded here instead.
     Slim::Control::Jive::registerPluginMenu([{
-        text    => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_GLOBAL_SETTINGS'),
-        id      => 'pluginRandomFlowSettings',
-        weight  => 20,
-        actions => { go => { player => 0, cmd => ['randomflow', 'menu'] } },
-        window  => { titleStyle => 'settings' },
+        text      => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_GLOBAL_SETTINGS'),
+        id        => 'pluginRandomFlowSettings',
+        weight    => 20,
+        'icon-id' => 'plugins/RandomFlow/HTML/images/randomflow_svg.png',
+        actions   => { go => { player => 0, cmd => ['randomflow', 'menu'] } },
+        window    => { titleStyle => 'settings', 'icon-id' => 'plugins/RandomFlow/HTML/images/randomflow_svg.png' },
     }], 'settings');
     Slim::Control::Request::addDispatch(['randomflow', 'menu'], [0, 0, 1, \&_handleJiveMenu]);
     # "Start mix" entry in the track info menu (same mechanism as SugarCube's "mix from here")
@@ -261,6 +269,7 @@ sub initPlugin {
     Slim::Control::Request::addDispatch(['randomflow', 'setmaxplaycount', '_value'], [1, 0, 0, \&_handleSetMaxPlaycount]);
     Slim::Control::Request::addDispatch(['randomflow', 'setartistcooldown', '_value'], [1, 0, 0, \&_handleSetArtistCooldown]);
     Slim::Control::Request::addDispatch(['randomflow', 'setalbumcooldown', '_value'], [1, 0, 0, \&_handleSetAlbumCooldown]);
+    Slim::Control::Request::addDispatch(['randomflow', 'setpoolsize', '_value'], [1, 0, 0, \&_handleSetPoolSize]);
 
     # Auto Mix <-> DSTM clash - not auto-resolved: DSTM's own check
     # consistently beat Auto Mix's own top-up timer whenever DSTM was set
@@ -507,6 +516,46 @@ sub _handleJiveMenu {
         actions       => { do => { choices => [
             map { +{ player => 0, cmd => ['randomflow', 'setalbumcooldown', $_] } } @albumSteps
         ] } },
+    };
+
+    # Pool size ("ask size"/"Aanvraag", pref_poolSize on the settings page):
+    # same fixed-set-plus-current-value shape as Artist/Album Cooldown
+    # above. Steps mirror the settings page's own slider range (10-2000).
+    my $poolSize  = $prefs->client($client)->get('poolSize') || 300;
+    my %poolSet   = map { $_ => 1 } (10, 50, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000);
+    $poolSet{$poolSize} = 1;
+    my @poolSteps = sort { $a <=> $b } keys %poolSet;
+    my ($poolSel) = grep { $poolSteps[$_] == $poolSize } 0 .. $#poolSteps;
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_POOLSIZE'),
+        choiceStrings => [ map { "$_" } @poolSteps ],
+        selectedIndex => $poolSel + 1,
+        actions       => { do => { choices => [
+            map { +{ player => 0, cmd => ['randomflow', 'setpoolsize', $_] } } @poolSteps
+        ] } },
+    };
+
+    # Four plain action items, same shape SC's own Jive menu uses for its
+    # "Start New Chain"/"Replace Next Track"/"Play Mood Batch"/"Add Mood
+    # Batch" buttons (no choiceStrings, nextWindow at item level) - these
+    # reuse the exact same dispatches the Live page's own icon buttons call,
+    # so jivelite gets the same four actions Live already has.
+    push @items, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTMIX'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'startmix'] } },
+    }, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTBATCH'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'startbatch'] } },
+    }, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_TOPUP'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'topup'] } },
+    }, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'replacenext'] } },
     };
 
     my $cnt = 0;
@@ -781,6 +830,26 @@ sub _handleSetBatchSize {
         $size = 10  if $size < 10;
         $size = 100 if $size > 100;
         $prefs->client($client)->set('batchSize', $size);
+    }
+
+    $request->setStatusDone();
+    return;
+}
+
+# Pool size ("ask size"/"Aanvraag") - same clamp-and-set shape as
+# _handleSetBatchSize above, but against Settings/Player.pm's own
+# pref_poolSize range (1-5000) rather than batch size's 10-100.
+sub _handleSetPoolSize {
+    my $request = shift;
+    my $client = $request->client();
+    return unless $client;
+
+    my $raw = $request->getParam('_value');
+    if (defined $raw && $raw =~ /^\d+$/) {
+        my $size = int($raw);
+        $size = 1    if $size < 1;
+        $size = 5000 if $size > 5000;
+        $prefs->client($client)->set('poolSize', $size);
     }
 
     $request->setStatusDone();

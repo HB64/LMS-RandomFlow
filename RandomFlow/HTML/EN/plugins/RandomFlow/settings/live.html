@@ -169,16 +169,16 @@
 [% PROCESS pageheader.html %]
 
 	<style>
-		[%# Layout matches SC's own Live page: the progress bar + transport   %]
-		[%# buttons are now position:fixed at the bottom of the viewport,    %]
-		[%# same as SC-EXTMIP's own #scProgressTrack/transport bar, not      %]
-		[%# inline in the page flow like before. padding-bottom here clears  %]
-		[%# those fixed bars so the rest of the page content doesn't sit     %]
-		[%# hidden underneath them - same reasoning as SC-EXTMIP's own       %]
-		[%# #sclvbody padding-bottom. +20px accounts for the elapsed/        %]
-		[%# duration time row kept below (see #tstNpTimes) - transport (64)  %]
-		[%# + time row (20) + progress bar (4) = 88px, rounded up a bit for  %]
-		[%# breathing room.                                                  %]
+		[%# Layout matches SC's own Live page: #tstTransport (progress bar +  %]
+		[%# transport buttons) is position:fixed at the bottom of the        %]
+		[%# viewport, not inline in the page flow. The bottom clearance for  %]
+		[%# it used to live here as body padding, but this page's content    %]
+		[%# sits inside Lyrion's own #homeMenu wrapper (height:0, added by   %]
+		[%# the shared settings-page template, not this file), and padding  %]
+		[%# on body - homeMenu's PARENT - never counts towards how far the   %]
+		[%# page can actually scroll. Moved onto #tstMixSettings itself     %]
+		[%# instead (see its own CSS rule + tstApplyBottomReserve()) - it's %]
+		[%# the deepest normal-flow element, so padding there does count.    %]
 		[%# Top padding was 1.5em, same as the sides, from when there was    %]
 		[%# still an h1/player-line/status badge above this row. With those  %]
 		[%# removed the row with the Queue button is now the very first      %]
@@ -190,7 +190,7 @@
 		[%# limit SC-EXTMIP's own comments run into for the settingGroup     %]
 		[%# WRAPPER Lyrion renders around every plugin settings page.        %]
 		body {
-			font-family:Arial, Helvetica, sans-serif; padding:0.5em 1.5em 96px 1.5em;
+			font-family:Arial, Helvetica, sans-serif; padding:0.5em 1.5em 0.5em 1.5em;
 			background:var(--background-color, #fff); color:var(--text-color, #333);
 		}
 		[%# A blurred/darkened full-page cover backdrop was tried here     %]
@@ -230,6 +230,14 @@
 		[%# mechanism from flex-grow, unaffected by whatever in Material's %]
 		[%# own chrome was resetting flex behaviour here.                  %]
 		#tstTopRow { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:6px; margin-bottom:1em; }
+		[%# Henk, 2026-10-10 - sticky header wrapper around tstTopRow+tstCurNextRow,   %]
+		[%# same pattern as SugarCube-s own #sclv-top: pins the Now/Next cards and    %]
+		[%# menu row to the top of the page-s own scroll while Mix Settings scrolls   %]
+		[%# past underneath, instead of the whole page moving as one piece. display: %]
+		[%# flow-root is required here too - without it, tstCurNextRow-s own         %]
+		[%# margin-bottom collapses straight through this wrapper-s boundary once    %]
+		[%# stuck, the exact bug SugarCube-s own comment on #sclv-top documents.     %]
+		#tstStickyTop { position:sticky; top:0; z-index:500; display:flow-root; background:var(--background-color, #fff); }
 		.tstAutoMixStatus { min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; }
 		.tstAutoMixLamp { width:10px; height:10px; border-radius:50%; display:inline-block; flex:none; }
 		.tstAutoMixLabel { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
@@ -537,34 +545,19 @@
 		#tstNpState, #tstNpNextLabel { font-size:0.8em; opacity:0.6; margin-bottom:0.4em; }
 		[%# Layout matches SC's own: SC-EXTMIP's own progress bar/transport   %]
 		[%# bar are NOT                                                      %]
-		[%# inline in the page - they're position:fixed at the very bottom   %]
-		[%# of the viewport, always visible regardless of scroll, same as    %]
-		[%# Material's own bottom player bar. Moved both out of #tstNowPlaying%]
-		[%# into their own fixed elements, near SC-EXTMIP's                  %]
-		[%# #scProgressTrack (bottom:64px, 4px tall) and its transport bar   %]
-		[%# (bottom:0, 64px tall) - see the body markup further down for     %]
-		[%# where they now sit in the DOM (position doesn't matter for a     %]
-		[%# position:fixed element, kept near the end of the page content,   %]
-		[%# same as SC-EXTMIP's own placement).                              %]
-		[%# Progress bar now matches Material's own layout, with elapsed/    %]
-		[%# duration time on either side of the bar - #tstNpProgressTrack    %]
-		[%# used to be its own fixed strip above a separate #tstNpTimes row  %]
-		[%# (see the removed comment above for that layout's own reasoning).   %]
-		[%# Merged into one row now: #tstNpTimes is the single fixed element,  %]
-		[%# same bottom/height footprint as the old two-piece stack combined   %]
-		[%# (64-88px band, 24px tall) so nothing else needs to change - body   %]
-		[%# padding-bottom, the transport bar, and the Queue/Rejected panels'  %]
-		[%# own 88/96px reserved-space numbers all still apply unchanged.      %]
-		[%# #tstNpProgressTrack is now a flex CHILD of #tstNpTimes (flex:1,    %]
-		[%# between the elapsed/duration spans) rather than its own fixed      %]
-		[%# element - tstUpdateCoverColor()/renderProgress() below only ever   %]
-		[%# touch its .style.background/.style.width, never its position, so  %]
-		[%# nothing there needed to change either.                            %]
+		[%# inline in the page - this row sits INSIDE #tstTransport now       %]
+		[%# (stacked above the button row), not independently position:fixed  %]
+		[%# any more - see #tstTransport's own comment below for why: one     %]
+		[%# fixed bottom element is more robust than two that have to keep    %]
+		[%# matching bottom/height offsets in sync.                           %]
+		[%# Progress bar matches Material's own layout, with elapsed/         %]
+		[%# duration time on either side of the bar. #tstNpProgressTrack is   %]
+		[%# a flex CHILD of #tstNpTimes (flex:1, between the elapsed/duration %]
+		[%# spans) - tstUpdateCoverColor()/renderProgress() below only ever   %]
+		[%# touch its .style.background/.style.width, never its position.    %]
 		#tstNpTimes {
-			position:fixed; left:0; right:0; bottom:64px; height:24px; z-index:1000;
-			display:flex; align-items:center; gap:10px;
+			display:flex; align-items:center; gap:10px; height:24px;
 			padding:0 12px; box-sizing:border-box;
-			background:var(--background-color, #424242);
 			font-size:0.75em; color:var(--text-color, #e0e0e0); opacity:0.7;
 		}
 		#tstNpElapsed, #tstNpDuration { flex:none; }
@@ -609,12 +602,19 @@
 		[%# no longer belongs here either - moved next to the player/status  %]
 		[%# line near the top of this page for now, until step 7 gives this  %]
 		[%# page the same top menu SC-EXTMIP moved it into.                  %]
+		[%# One single fixed bottom element now, holding the time/progress    %]
+		[%# row above the button row - height is intrinsic (not a hardcoded  %]
+		[%# number), measured by JS below (tstBottomReserve()) and used to    %]
+		[%# set body padding-bottom and the Queue/Rejected/History panels'    %]
+		[%# own reserved-space math, so there's exactly one source of truth   %]
+		[%# for how tall this bar actually is instead of two numbers that     %]
+		[%# have to be kept in sync by hand.                                  %]
 		#tstTransport {
-			position:fixed; left:0; right:0; bottom:0; z-index:1000; height:64px; box-sizing:border-box;
+			position:fixed; left:0; right:0; bottom:0; z-index:1000; box-sizing:border-box;
 			background:var(--background-color, #424242); border-top:1px solid var(--list-item-border-color, rgba(255,255,255,0.15));
-			display:flex; align-items:center; justify-content:center; padding:0 8px;
+			display:flex; flex-direction:column; padding:0 8px;
 		}
-		.tstTransportInner { display:flex; align-items:center; justify-content:center; gap:40px; }
+		.tstTransportInner { display:flex; align-items:center; justify-content:center; gap:40px; height:64px; }
 		.tstTransportBtn {
 			background:transparent !important;
 			color:var(--text-color, #e0e0e0) !important;
@@ -709,6 +709,8 @@
 			<span id="tstJsErrorText"></span>
 		</div>
 
+		<div id="tstPageBody" style="position:relative;">
+		<div id="tstStickyTop">
 		<div id="tstTopRow">
 			[%# Step 7 - menu button, same position SC-EXTMIP uses for its       %]
 			[%# own sclvMenuBtn (top-left, NOT top-right - see the  %]
@@ -871,6 +873,7 @@
 				</div>
 			</div>
 		</div>
+		</div>
 
 		[%# Quick mix controls at the bottom of the page - started with      %]
 		[%# just the filter switcher, then added                           %]
@@ -907,7 +910,12 @@
 		[%# reachable from here - wired via addEventListener instead, from   %]
 		[%# inside the closure, same fix already applied once before to      %]
 		[%# tstPanelClose's own onclick for the same reason.                 %]
-		<details id="tstMixSettings" data-scopen="1" open>
+		[%# Henk, 2026-10-10 - left/right 15px here is the same fix SC already    %]
+		[%# applied to its own <details> (see its sclvChainSettings comment):    %]
+		[%# the summary marker under list-style-position:outside sits flush at   %]
+		[%# the element's own edge and pokes into the sticky header's left       %]
+		[%# gutter once Mix Settings scrolls under it.                          %]
+		<details id="tstMixSettings" data-scopen="1" open style="padding-bottom:96px; padding-left:24px; padding-right:24px;">
 			<summary>Mix Settings
 				<span class="tstInfoWrap">
 					<span class="tstInfoIcon" id="tstMixSettingsInfoIcon">&#9432;</span>
@@ -964,6 +972,7 @@
 				<span class="tstSettingValue" id="tstAlbumCooldownValue">0</span>
 			</div>
 		</details>
+		</div>
 		[%# tstApplyDetailsState() itself is called from inside the main     %]
 		[%# closure script further down (near handshake()/                  %]
 		[%# tstMixSettingsFetch()), NOT from a standalone inline             %]
@@ -1052,15 +1061,16 @@
 		[%# Fixed at the bottom of the viewport (see the CSS comment above)   %]
 		[%# - same DOM placement as SC-EXTMIP's own progress bar/transport    %]
 		[%# bar, right after its main content and before pagefooter.html.    %]
-		[%# One row: elapsed time, the bar itself, duration time, left to     %]
-		[%# right, same as Material's own player bar - see the CSS comment    %]
-		[%# above for why nothing else needed to move as a result.            %]
-		<div id="tstNpTimes">
-			<span id="tstNpElapsed">0:00</span>
-			<div id="tstNpProgressTrack"><div id="tstNpProgressFill"></div></div>
-			<span id="tstNpDuration"></span>
-		</div>
+		[%# #tstNpTimes now lives INSIDE #tstTransport, stacked above the     %]
+		[%# button row, so the page has exactly one fixed bottom element      %]
+		[%# instead of two independently-positioned ones - see the CSS        %]
+		[%# comment above for why.                                           %]
 		<div id="tstTransport">
+			<div id="tstNpTimes">
+				<span id="tstNpElapsed">0:00</span>
+				<div id="tstNpProgressTrack"><div id="tstNpProgressFill"></div></div>
+				<span id="tstNpDuration"></span>
+			</div>
 			<div class="tstTransportInner">
 				<button type="button" class="tstTransportBtn" id="tstPrevBtn" title="Previous" aria-label="Previous"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
 				<button type="button" class="tstTransportBtn tstTransportBtnPlay" id="tstPlayPauseBtn" title="Play / Pause" aria-label="Play / Pause">
@@ -1152,6 +1162,27 @@
 			// up) so the panel stays in sync without polling.
 			var tstQueueOpen           = false;
 			var tstLastPlaylistStamp   = null;
+
+			// Single source of truth for how much bottom clearance the page
+			// needs for #tstTransport (see that element's own CSS comment) -
+			// measures its actual rendered height instead of a hardcoded
+			// number, so it can never drift out of sync with the real bar.
+			// +8 is the same "rounded up a bit for breathing room" margin
+			// the old hardcoded 96 used.
+			function tstBottomReserve() {
+				var bar = document.getElementById('tstTransport');
+				return (bar ? bar.offsetHeight : 88) + 8;
+			}
+			function tstApplyBottomReserve() {
+				// Not body - body sits outside Lyrion's own #homeMenu wrapper
+				// (height:0), so padding there never extends how far the page
+				// can scroll. #tstMixSettings is the deepest normal-flow
+				// element, so padding on it does.
+				var mixEl = document.getElementById('tstMixSettings');
+				if (mixEl) mixEl.style.paddingBottom = tstBottomReserve() + 'px';
+			}
+			tstApplyBottomReserve();
+			window.addEventListener('resize', tstApplyBottomReserve);
 
 			// Step 7 - "last played" has no
 			// tag at all (see pickId's own comment), so it's fetched
@@ -1374,10 +1405,11 @@
 			[%# relative, same coordinate space position:fixed top/right use), %]
 			[%# so the panel opens right under wherever the button actually is %]
 			[%# rather than sitting wherever it happened to fall in the        %]
-			[%# normal page flow. 96, not SC-EXTMIP's own 76: that's the       %]
-			[%# reserved space for OUR fixed bottom stack (see the body        %]
-			[%# padding-bottom comment above) - transport+time+progress bar    %]
-			[%# (88px) plus a small margin, not SC-EXTMIP's own 68px pair.     %]
+			[%# normal page flow. tstBottomReserve(), not SC-EXTMIP's own      %]
+			[%# hardcoded 76/96: measures OUR fixed #tstTransport bar's real   %]
+			[%# height (see that element's own CSS comment) so this panel      %]
+			[%# never overlaps it, instead of a number that has to be kept     %]
+			[%# in sync by hand.                                               %]
 			[%# On a phone the queue panel could otherwise sit partly off-     %]
 			[%# screen on one side - width used to come     %]
 			[%# from CSS (width:min(94vw,460px), see that rule's own comment   %]
@@ -1403,7 +1435,7 @@
 					panel.style.right = right + 'px';
 					panel.style.bottom = 'auto';
 					panel.style.width = width + 'px';
-					panel.style.maxHeight = Math.max(120, Math.round(window.innerHeight - top - 96)) + 'px';
+					panel.style.maxHeight = Math.max(120, Math.round(window.innerHeight - top - tstBottomReserve())) + 'px';
 				}
 				panel.style.display = tstQueueOpen ? 'block' : 'none';
 				var label = tstQueueOpen ? 'Hide Queue' : 'Show Queue';
@@ -1493,7 +1525,7 @@
 					el.style.right = 'auto';
 					el.style.bottom = 'auto';
 					el.style.width = width + 'px';
-					el.style.maxHeight = Math.max(120, Math.round(window.innerHeight - top - 96)) + 'px';
+					el.style.maxHeight = Math.max(120, Math.round(window.innerHeight - top - tstBottomReserve())) + 'px';
 				}
 				if (el) { el.classList.add('open'); }
 				if (name === 'rejected') { tstRejFetch(); }

@@ -60,7 +60,7 @@ PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS
 
 PLUGIN_RANDOMFLOW_POOLSIZE
 	EN	Ask size
-	NL	Ask size
+	NL	Aanvraag
 
 PLUGIN_RANDOMFLOW_POOLSIZE_DESC
 	EN	How many candidate tracks are randomly sampled before a weighted pick is made from them. A larger pool makes Style/Wobble/artist weighting more noticeable but is slightly slower; a very small pool can make weighting barely visible.
@@ -285,3 +285,19 @@ PLUGIN_RANDOMFLOW_USAGEGUIDE
 PLUGIN_RANDOMFLOW_USAGEGUIDE_DESC
 	EN	A walkthrough of the Live page - Auto Mix, Mix Settings, the queue and more.
 	NL	Een uitleg van de Live-pagina - Auto Mix, Mix Settings, de wachtrij en meer.
+
+PLUGIN_RANDOMFLOW_JIVE_STARTMIX
+	EN	Start New Mix
+	NL	Nieuwe mix starten
+
+PLUGIN_RANDOMFLOW_JIVE_STARTBATCH
+	EN	Start Batch
+	NL	Batch starten
+
+PLUGIN_RANDOMFLOW_JIVE_TOPUP
+	EN	Top Up
+	NL	Aanvullen
+
+PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK
+	EN	Replace Track
+	NL	Track vervangen

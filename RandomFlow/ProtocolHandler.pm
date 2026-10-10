@@ -75,13 +75,21 @@ sub isRemote        { return 0; }
 # SugarCube's own version of this calls _pluginDataFor('icon') on its
 # Plugin.pm, but that method only exists because SugarCube's Plugin.pm
 # inherits from Slim::Plugin::Base - this throwaway Plugin.pm doesn't,
-# and install.xml doesn't declare an icon either, so that call would die
-# with "Can't locate object method _pluginDataFor" the moment Lyrion
-# asks for an icon while trying to play a randomflow: URL -
-# aborting the whole play attempt with no obvious symptom other than
-# "nothing happens". No icon is fine; returning undef here is what a
-# protocol handler with no icon of its own is supposed to do.
-sub getIcon { return undef; }
+# so that call isn't available here and would die with "Can't locate
+# object method _pluginDataFor" if used. install.xml DOES declare an
+# icon now (<icon>plugins/RandomFlow/HTML/images/randomflow_svg.png</icon>),
+# the same file Web.pm's own addPageLinks('icons', ...) already points
+# Material's web UI at - this just hardcodes that same literal path
+# rather than reading it back out of install.xml, since there's no
+# Slim::Plugin::Base helper here to do that for us.
+#
+# Returning undef here was silently fine on Material (it falls back to
+# a generic default icon when a menu entry has none), but a Jive-based
+# client like Squeezebox Touch/jivelite shows no icon at all instead of
+# a fallback - this is why "Start RandomFlow Mix" rendered with no icon
+# there. SugarCube's own working equivalent is the proof this path is
+# actually expected to resolve.
+sub getIcon { return 'plugins/RandomFlow/HTML/images/randomflow_svg.png'; }
 
 1;
 
