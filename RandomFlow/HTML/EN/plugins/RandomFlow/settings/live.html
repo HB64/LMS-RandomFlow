@@ -168,6 +168,11 @@
 [% END -%]
 [% PROCESS pageheader.html %]
 
+	[%# Henk, 2026-10-11 - without this a mobile browser renders the page %]
+	[%# at a virtual ~980px width and visually squeezes that down to the  %]
+	[%# real screen width - tiny/shifted look, needs horizontal panning.  %]
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
 	<style>
 		[%# Layout matches SC's own Live page: #tstTransport (progress bar +  %]
 		[%# transport buttons) is position:fixed at the bottom of the        %]
@@ -408,7 +413,7 @@
 		[%# on every row, so every control (select/slider) lines up.     %]
 		.tstSettingRow label { flex:none; width:140px; white-space:nowrap; opacity:0.85; }
 		.tstSettingSelect {
-			flex:1; max-width:240px; padding:6px 8px; border-radius:4px; font-size:1em;
+			flex:1; min-width:0; padding:6px 8px; border-radius:4px; font-size:1em;
 			background:var(--background-color, #fff); color:var(--text-color, #333);
 			border:1px solid var(--list-item-border-color, rgba(128,128,128,0.3));
 		}
@@ -431,8 +436,21 @@
 		[%# down this script; the var(...) fallback here only matters     %]
 		[%# before that first runs (e.g. this stylesheet rendering        %]
 		[%# before any JS has executed at all).                          %]
-		.tstSettingRow input[type="range"] { flex:1; touch-action:none; accent-color:var(--tst-accent-color, rgb(25,118,210)); }
-		.tstSettingValue { flex:none; min-width:60px; text-align:right; opacity:0.85; font-size:0.9em; }
+		[%# min-width:0 + narrower .tstSettingValue below: matches SC's own deployed fix, %]
+		[%# lets the slider actually shrink to fit on narrow screens instead of         %]
+		[%# holding its default content-based min width.                                %]
+		.tstSettingRow input[type="range"] { flex:1; min-width:0; outline:none; touch-action:none; accent-color:var(--tst-accent-color, rgb(25,118,210)); }
+		.tstSettingValue { flex:none; min-width:32px; text-align:right; opacity:0.85; font-size:0.9em; }
+		[%# Henk, 2026-10-11 - the Filter <select> above gets swapped at runtime by  %]
+		[%# Lyrion's own classic-skin custom-select.min.js for a div-based widget    %]
+		[%# (.custom-select-container/.custom-select-opener) - .tstSettingSelect's   %]
+		[%# flex:1/min-width:0 above only reach the now-hidden native <select>, not  %]
+		[%# this widget, so it kept its flex default (flex-basis:auto, min-width:    %]
+		[%# auto) and sized itself to its longest option text (e.g. 200px for        %]
+		[%# "Relaxen"), pushing the row - and the page - wider than the screen.    %]
+		[%# Same flexbox pitfall as the native select, just on a different element.  %]
+		#tstMixSettings .custom-select-container { flex:1; min-width:0; }
+		#tstMixSettings .custom-select-opener { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 		[%# Info-icon/popover widget for the Auto Mix row below, ported     %]
 		[%# from SC-EXTMIP's own sc-info-wrap/sc-info-                     %]
 		[%# icon/sc-info-popover (its liveview.html/player.html/          %]
