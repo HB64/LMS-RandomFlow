@@ -290,10 +290,8 @@
 		[%# <table> built server-side in Breakout.pm - a different feature  %]
 		[%# entirely: this panel shows tracks EXCLUDED by a soft             %]
 		[%# criterion, with why, nothing SC-EXTMIP itself has). The one     %]
-		[%# piece matched to SC-EXTMIP is the                               %]
-		[%# "queue this instead" icon - .tstRejBtn's svg below is SC-       %]
-		[%# EXTMIP's own .sc-mipbtn triangle+queue-bars icon (Breakout.pm's %]
-		[%# StatsPuller, "Use as Next"), copied path-for-path.              %]
+		[%# .tstRejBtn's icon matches Replace Track's own swap-arrows glyph %]
+		[%# (tstReplaceNextBtn above), not SC-EXTMIP's triangle+bars one.   %]
 		.tstRejRow {
 			display:flex; align-items:center; gap:10px; padding:8px 10px;
 			border-bottom:1px solid var(--list-item-border-color, rgba(128,128,128,0.25));
@@ -411,7 +409,7 @@
 		[%# Album Cooldown" - at this font size, with nowrap so it never %]
 		[%# wraps to a second line) makes the label column the same size %]
 		[%# on every row, so every control (select/slider) lines up.     %]
-		.tstSettingRow label { flex:none; width:140px; white-space:nowrap; opacity:0.85; }
+		.tstSettingRow label { flex:none; width:8.5em; white-space:nowrap; opacity:0.85; }
 		.tstSettingSelect {
 			flex:1; min-width:0; padding:6px 8px; border-radius:4px; font-size:1em;
 			background:var(--background-color, #fff); color:var(--text-color, #333);
@@ -439,7 +437,7 @@
 		[%# min-width:0 + narrower .tstSettingValue below: matches SC's own deployed fix, %]
 		[%# lets the slider actually shrink to fit on narrow screens instead of         %]
 		[%# holding its default content-based min width.                                %]
-		.tstSettingRow input[type="range"] { flex:1; min-width:0; outline:none; touch-action:none; accent-color:var(--tst-accent-color, rgb(25,118,210)); }
+		.tstSettingRow input[type="range"] { flex:1; width:0; min-width:0; outline:none; touch-action:none; accent-color:var(--tst-accent-color, rgb(25,118,210)); }
 		.tstSettingValue { flex:none; min-width:32px; text-align:right; opacity:0.85; font-size:0.9em; }
 		[%# Henk, 2026-10-11 - the Filter <select> above gets swapped at runtime by  %]
 		[%# Lyrion's own classic-skin custom-select.min.js for a div-based widget    %]
@@ -450,7 +448,7 @@
 		[%# "Relaxen"), pushing the row - and the page - wider than the screen.    %]
 		[%# Same flexbox pitfall as the native select, just on a different element.  %]
 		#tstMixSettings .custom-select-container { flex:1; min-width:0; }
-		#tstMixSettings .custom-select-opener { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+		#tstMixSettings .custom-select-opener { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-color: var(--list-item-border-color, rgba(128,128,128,0.3)) !important; }
 		[%# Info-icon/popover widget for the Auto Mix row below, ported     %]
 		[%# from SC-EXTMIP's own sc-info-wrap/sc-info-                     %]
 		[%# icon/sc-info-popover (its liveview.html/player.html/          %]
@@ -933,7 +931,7 @@
 		[%# the summary marker under list-style-position:outside sits flush at   %]
 		[%# the element's own edge and pokes into the sticky header's left       %]
 		[%# gutter once Mix Settings scrolls under it.                          %]
-		<details id="tstMixSettings" data-scopen="1" open style="padding-bottom:96px; padding-left:24px; padding-right:24px;">
+		<details id="tstMixSettings" data-scopen="1" open style="padding-bottom:96px; padding-left:0; padding-right:0;">
 			<summary>Mix Settings
 				<span class="tstInfoWrap">
 					<span class="tstInfoIcon" id="tstMixSettingsInfoIcon">&#9432;</span>
@@ -1611,7 +1609,7 @@
 					+ (reasons ? '<div class="tstRejReason">' + esc(reasons) + '</div>' : '')
 					+ '</div>'
 					+ '<button type="button" class="tstRejBtn" data-trackid="' + t.trackId + '" title="Queue as Next" aria-label="Queue as Next">'
-					+ '<svg width="28" height="17" viewBox="0 0 40 24" fill="currentColor"><polygon points="4,4 4,20 14,12"/><rect x="16" y="4" width="2.4" height="16"/><rect x="21" y="5" width="16" height="2.4"/><rect x="21" y="11" width="16" height="2.4"/><rect x="21" y="17" width="11" height="2.4"/></svg>'
+					+ '<svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>'
 					+ '</button>'
 					+ '</div>';
 			}
@@ -1843,7 +1841,16 @@
 				// from a JSON-RPC fetch, not a per-request TT render.
 				document.getElementById('tstAutoMixLamp').style.background = data.mixRunning ? '#3fb950' : '#f04747';
 
-				var select = document.getElementById('tstFilterSelect');
+				// Henk, 2026-10-17 - rebuilding the whole row (not just the <option>s) is
+				// deliberate: Lyrion's skin swaps a <select> for its own small custom-dropdown
+				// widget once, the first time it sees that DOM node, and never again - so the
+				// native <select> (and the bigger picker a phone gives it) only ever shows up
+				// right after the *element itself* is freshly created. Replacing just the
+				// options (the old one-line version here) left the skin's widget in place
+				// forever after the first load. tstMixSettingsFocused() above already skips
+				// this whole refresh while the dropdown is open, so this never yanks it away
+				// mid-choice. Scoped to this one row only - covers/track info refresh on their
+				// own separate interval and are untouched by any of this.
 				var filters = data.filters || [];
 				var activeFilterId = data.activeFilterId || '';
 
@@ -1852,7 +1859,9 @@
 					var f = filters[i];
 					html += '<option value="' + esc(f.id) + '"' + (f.id === activeFilterId ? ' selected' : '') + '>' + esc(f.name) + '</option>';
 				}
-				select.innerHTML = html;
+				var filterRow = document.getElementById('tstFilterSelect').closest('.tstSettingRow');
+				filterRow.innerHTML = '<label for="tstFilterSelect">Filter</label><select id="tstFilterSelect" class="tstSettingSelect">' + html + '</select>';
+				tstBindFilterSelect();
 
 				var wobble = parseInt(data.wobble, 10) || 0;
 				document.getElementById('tstWobbleRange').value = wobble;
@@ -2686,9 +2695,18 @@
 			// resulting playlist change on its own, same "fire and
 			// forget" pattern the transport buttons and Start Mix/Replace
 			// Track already use above.
-			document.getElementById('tstFilterSelect').addEventListener('change', function() {
-				tstPlayerCmd(['randomflow', 'setfilter', this.value]);
-			});
+			//
+			// Henk, 2026-10-17 - factored out of the one-off call it used to be: the whole
+			// <select> gets rebuilt from scratch on every Mix Settings refresh now (see
+			// tstMixSettingsRender's own comment on its filterRow.innerHTML line), which
+			// means a freshly created element with no listener of its own each time - so
+			// this needs calling again after every rebuild, not just once at page load.
+			function tstBindFilterSelect() {
+				document.getElementById('tstFilterSelect').addEventListener('change', function() {
+					tstPlayerCmd(['randomflow', 'setfilter', this.value]);
+				});
+			}
+			tstBindFilterSelect();
 
 			// Auto Mix is deliberately its OWN action,
 			// 'setautomix', NOT the startmix/stopmix pair the dedicated
