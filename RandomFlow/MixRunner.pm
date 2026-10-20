@@ -677,7 +677,14 @@ sub _onNewSong {
     my $client = $request->client();
     return unless $client;
 
-    return unless $request->isCommand([['playlist'], ['newsong']]);
+    # Henk's request 2026-10-20: also re-run the same check after 'playlist delete' - removing the
+    # one queued-ahead track (e.g. the Live page's own Remove button) while paused, then resuming
+    # the still-current track, fires neither 'newsong' (same track, no song change) nor anything
+    # else was listening for, so the queue was left permanently at just the current track.
+    # _maybeQueueNext's own "exactly 1 left" guard makes this safe to re-check on any delete, not
+    # just the one that empties the queue.
+    return unless $request->isCommand([['playlist'], ['newsong']])
+        || $request->isCommand([['playlist'], ['delete']]);
 
     Slim::Utils::Timers::killTimers($client, \&_maybeQueueNextTimer);
     Slim::Utils::Timers::setTimer($client, Time::HiRes::time() + SUGAR_DELAY, \&_maybeQueueNextTimer);

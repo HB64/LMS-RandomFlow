@@ -356,6 +356,7 @@
 			opacity:0.85 !important;
 		}
 		.tstIconBtn:hover { opacity:1 !important; }
+		.tstIconBtn[disabled] { opacity:0.3 !important; cursor:default !important; }
 		#tstStatus { font-weight:bold; padding:0.3em 0.6em; border-radius:4px; display:inline-block; }
 		.tstOk   { background:#1e5c2e; color:#c8f5cf; }
 		.tstWarn { background:#6b5a12; color:#ffe9a8; }
@@ -1840,6 +1841,19 @@
 				// done here in JS instead since this page's state comes
 				// from a JSON-RPC fetch, not a per-request TT render.
 				document.getElementById('tstAutoMixLamp').style.background = data.mixRunning ? '#3fb950' : '#f04747';
+
+				// Henk, 2026-10-20 - grey out Start Mix/Replace Track/Start Batch/Top Up while Auto
+				// Mix is off, same cosmetic treatment ported to MIPster's and SC-EXTMIP's own
+				// equivalents. MixRunner's own functions already refuse safely when mixRunning is
+				// off (see e.g. startMix's own guard/_warnAutoMixOff) - this just reflects that up
+				// front instead of letting the click land and show a popup. Independent of Replace
+				// Track's own queue-position show/hide further down (renderNowPlaying) - disabled
+				// and hidden are two different things, same split SC-EXTMIP uses (sc_on/sc_can_act).
+				var rfMixOff = !data.mixRunning;
+				document.getElementById('tstStartMixBtn').disabled = rfMixOff;
+				document.getElementById('tstReplaceNextBtn').disabled = rfMixOff;
+				document.getElementById('tstStartBatchBtn').disabled = rfMixOff;
+				document.getElementById('tstTopUpBtn').disabled = rfMixOff;
 
 				// Henk, 2026-10-17 - rebuilding the whole row (not just the <option>s) is
 				// deliberate: Lyrion's skin swaps a <select> for its own small custom-dropdown
