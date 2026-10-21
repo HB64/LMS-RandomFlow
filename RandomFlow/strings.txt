@@ -6,6 +6,10 @@ RANDOMFLOW_DESC
 	EN	Dynamic music-mixing plugin: builds and sustains a continuous mix from your library, with per-player filters, artist/album weighting and cooldowns, Batch and Album Mix modes, and Don't Stop The Music integration.
 	NL	Dynamische muziekmix-plugin: bouwt en onderhoudt een doorlopende mix vanuit je bibliotheek, met per-speler filters, artiest/album-weging en cooldowns, Batch- en Album Mix-modi, en Don't Stop The Music-integratie.
 
+DEBUG_PLUGIN_RANDOMFLOW
+	EN	Random Flow
+	NL	Random Flow
+
 PLUGIN_RANDOMFLOW_GLOBAL_SETTINGS
 	EN	Random Flow
 	NL	Random Flow

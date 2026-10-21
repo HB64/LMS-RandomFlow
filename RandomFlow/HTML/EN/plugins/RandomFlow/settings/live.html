@@ -507,6 +507,13 @@
 		[%# by side, each with its own icon button underneath) was         %]
 		[%# missing entirely, not just styled differently - added below,   %]
 		[%# same flex-row/flex-column structure as SC-EXTMIP's own.        %]
+		/* Empty queue: like MIPster's Live View, only Start New Mix and Start Batch remain. */
+		#tstCurNextRow.tstEmpty { justify-content:center; margin:0.5em 0; }
+		#tstCurNextRow.tstEmpty #tstNowPlaying,
+		#tstCurNextRow.tstEmpty .tstCurNextCol + .tstCurNextCol { display:none !important; }
+		#tstCurNextRow.tstEmpty .tstCurNextBtnRow { width:auto; margin-top:0; padding:12px 0; }
+		#tstEmptyLbl { display:none; opacity:0.7; }
+		#tstCurNextRow.tstEmpty #tstEmptyLbl { display:inline; }
 		#tstCurNextRow { display:flex; gap:24px; flex-wrap:wrap; margin:1.5em 0; }
 		.tstCurNextCol { flex:1; min-width:220px; }
 		[%# Matched 1:1 to SC-EXTMIP's own liveview.html - the button row     %]
@@ -766,11 +773,13 @@
 			[%# is the only thing that actually works here).                  %]
 			<div class="tstAutoMixStatus">
 				<span class="tstAutoMixLamp" id="tstAutoMixLamp"></span>
-				<span class="tstAutoMixLabel">Auto Mix</span>
-				<select id="tstAutoMixSelect">
-					<option value="0">Disabled</option>
-					<option value="1">Enabled</option>
-				</select>
+				<span class="tstAutoMixLabel" id="tstAutoMixLabel">Auto Mix</span>
+				<span id="tstAutoMixSelectWrap">
+					<select id="tstAutoMixSelect">
+						<option value="0">Disabled</option>
+						<option value="1">Enabled</option>
+					</select>
+				</span>
 				<span class="tstInfoWrap">
 					<span class="tstInfoIcon" id="tstAutoMixInfoIcon">&#9432;</span>
 					<div class="tstInfoPopover">
@@ -839,6 +848,7 @@
 				[%# _handleStartMix there) - no new backend code needed,    %]
 				[%# it already does exactly what this button should trigger.%]
 				<div class="tstCurNextBtnRow">
+					<span id="tstEmptyLbl">Empty queue</span>
 					<button type="button" class="tstIconBtn" id="tstStartMixBtn" aria-label="Start New Mix" title="Start New Mix">
 						<svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
 					</button>
@@ -1835,12 +1845,22 @@
 					replaceBtn.setAttribute('title', 'Replace Album');
 				}
 
+				// Henk, 2026-10-21 - whole wrapper rebuilt fresh on every refresh now, same
+				// reason/pattern as Filter's filterRow.innerHTML above: Material Skin's
+				// custom-select.min.js only wraps a <select> once (on page load, or on an
+				// unrelated page-wide option-mutation event) - rebuilding just the bare
+				// <select> via outerHTML left any existing wrapper in place around it,
+				// which is why the small inline list kept showing instead of the native
+				// picker when viewed through Material's Android app wrapper.
+				document.getElementById('tstAutoMixSelectWrap').innerHTML = '<select id="tstAutoMixSelect"><option value="0">Disabled</option><option value="1">Enabled</option></select>';
 				document.getElementById('tstAutoMixSelect').value = data.mixRunning ? '1' : '0';
+				tstBindAutoMixSelect();
 				// Same #3fb950 (on) / #f04747 (off) SC-EXTMIP itself uses
 				// for its own sc_lamp, computed there server-side (TT) -
 				// done here in JS instead since this page's state comes
 				// from a JSON-RPC fetch, not a per-request TT render.
 				document.getElementById('tstAutoMixLamp').style.background = data.mixRunning ? '#3fb950' : '#f04747';
+				document.getElementById('tstAutoMixLabel').style.color = data.mixRunning ? '' : '#f04747';
 
 				// Henk, 2026-10-20 - grey out Start Mix/Replace Track/Start Batch/Top Up while Auto
 				// Mix is off, same cosmetic treatment ported to MIPster's and SC-EXTMIP's own
@@ -2287,6 +2307,12 @@
 				// .tstIconBtn forces display:inline-flex !important, which
 				// beats a non-important inline style. setProperty(...,
 				// 'important') is required to actually override it.
+				// Nothing queued at all: only the two start icons remain (CSS class tstEmpty).
+				var rfRow = document.getElementById('tstCurNextRow');
+				if (rfRow) {
+					var rfTotal = (data.playlist_tracks != null) ? parseInt(data.playlist_tracks, 10) : null;
+					rfRow.classList.toggle('tstEmpty', rfTotal === 0);
+				}
 				var replaceBtn = document.getElementById('tstReplaceNextBtn');
 				var showReplace;
 				if (RF_MIX_MODE === 'albums') {
@@ -2735,13 +2761,21 @@
 			// touched either way. Plugin.pm's setChange watcher on
 			// mixRunning (initPlugin) still reacts to it the same,
 			// whichever action actually changed the pref.
-			document.getElementById('tstAutoMixSelect').addEventListener('change', function() {
-				tstPlayerCmd(['randomflow', 'setautomix', this.value]);
-				// Immediate feedback - this page has no periodic refresh to
-				// pick this up on its own the way SC-EXTMIP's own 2-second
-				// ajaxUpdate tick would.
-				document.getElementById('tstAutoMixLamp').style.background = (this.value === '1') ? '#3fb950' : '#f04747';
-			});
+			// Henk, 2026-10-21 - same reason as tstBindFilterSelect above: the wrapper's
+			// <select> is rebuilt from scratch on every Mix Settings refresh now (see
+			// tstMixSettingsRender's own comment on this), so this needs calling again
+			// after every rebuild, not just once at page load.
+			function tstBindAutoMixSelect() {
+				document.getElementById('tstAutoMixSelect').addEventListener('change', function() {
+					tstPlayerCmd(['randomflow', 'setautomix', this.value]);
+					// Immediate feedback - this page has no periodic refresh to
+					// pick this up on its own the way SC-EXTMIP's own 2-second
+					// ajaxUpdate tick would.
+					document.getElementById('tstAutoMixLamp').style.background = (this.value === '1') ? '#3fb950' : '#f04747';
+					document.getElementById('tstAutoMixLabel').style.color = (this.value === '1') ? '' : '#f04747';
+				});
+			}
+			tstBindAutoMixSelect();
 
 			// tstAutoMixInfoIcon click + #tstMixSettings toggle are
 			// wired via addEventListener from inside this

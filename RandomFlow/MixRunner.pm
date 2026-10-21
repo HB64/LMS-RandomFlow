@@ -106,7 +106,7 @@ sub init {
 }
 
 sub startMix {
-    my ($client) = @_;
+    my ($client, $alarm) = @_;   # $alarm: called by the Alarm Clock, see below
     return unless $client;
 
     # See the SYNCED PLAYERS design note above - the newsong notification
@@ -125,7 +125,11 @@ sub startMix {
     # the same way a missing filter is refused - Start New Mix now only
     # acts as "give me a fresh pick right now" WHILE Auto Mix is already
     # on; turning mixing on at all is Auto Mix's job alone.
-    if (!$prefs->client($master)->get('mixRunning')) {
+    # An ALARM is the exception: a wake-up that stays silent because a switch is off is a failed
+    # alarm. It plays one track and leaves Auto Mix as it was (off stays off), like MIPster and
+    # SugarCube do.
+    my $wasOn = $prefs->client($master)->get('mixRunning') ? 1 : 0;
+    if (!$wasOn && !$alarm) {
         $log->warn("RandomFlow::MixRunner: startMix refused for " . $client->name . " - Auto Mix is disabled for this player. Enable Auto Mix first.");
         _warnAutoMixOff($client);
         return 0;
@@ -154,7 +158,7 @@ sub startMix {
     }
 
     if (($criteria->{mixMode} || 'songs') eq 'albums') {
-        return _startAlbumMix($client, $master, $sourceClient, $criteria);
+        return _startAlbumMix($client, $master, $sourceClient, $criteria, $alarm && !$wasOn);
     }
 
     $client->execute(['playlist', 'clear']);
@@ -169,7 +173,7 @@ sub startMix {
 
     $client->execute(['playlist', 'add', $picked->[0]{url}]);
     $client->execute(['play']);
-    $prefs->client($master)->set('mixRunning', 1);
+    $prefs->client($master)->set('mixRunning', 1) unless ($alarm && !$wasOn);
     $prefs->client($master)->set('mixSourceClientId', $sourceClient->id);
     $log->info("RandomFlow::MixRunner: mix started for " . $client->name . " - queued '" . $picked->[0]{title} . "' by '" . ($picked->[0]{artist} // '?') . "'.");
     return 1;
@@ -181,7 +185,7 @@ sub startMix {
 # _queueNextAlbum()/replaceNext() below for how that fills in once the
 # mix runs long enough to top up.
 sub _startAlbumMix {
-    my ($client, $master, $sourceClient, $criteria) = @_;
+    my ($client, $master, $sourceClient, $criteria, $alarmOff) = @_;   # $alarmOff: alarm on a player whose Auto Mix is off
 
     $client->execute(['playlist', 'clear']);
 
@@ -196,7 +200,7 @@ sub _startAlbumMix {
     my $album = $albums->[0];
     $client->execute(['playlist', 'add', $_->{url}]) for @{ $album->{tracks} };
     $client->execute(['play']);
-    $prefs->client($master)->set('mixRunning', 1);
+    $prefs->client($master)->set('mixRunning', 1) unless $alarmOff;
     $prefs->client($master)->set('mixSourceClientId', $sourceClient->id);
     $prefs->client($master)->set('mixNextAlbumTrackCount', 0);
     $log->info("RandomFlow::MixRunner: album mix started for " . $client->name . " - queued '" . $album->{albumTitle} . "' by '" . ($album->{albumArtist} // '?') . "' (" . scalar(@{ $album->{tracks} }) . " track(s)).");

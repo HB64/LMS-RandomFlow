@@ -63,7 +63,7 @@ sub overridePlayback {
     # read to wait out), but kept for consistency and so this always
     # runs slightly after Lyrion's own alarm bookkeeping for this play
     # command has settled.
-    Slim::Utils::Timers::setTimer($client, Time::HiRes::time() + 1, \&Plugins::RandomFlow::MixRunner::startMix);
+    Slim::Utils::Timers::setTimer($client, Time::HiRes::time() + 1, \&Plugins::RandomFlow::MixRunner::startMix, 1);
 
     return 1;
 }
