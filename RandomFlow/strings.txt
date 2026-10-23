@@ -304,4 +304,4 @@ PLUGIN_RANDOMFLOW_JIVE_TOPUP
 
 PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK
 	EN	Replace Track
-	NL	Track vervangen
+	NL	Volgende track vervangen

@@ -193,7 +193,7 @@ use Slim::Schema;
 use Slim::Utils::Log;
 
 my $log = Slim::Utils::Log->addLogCategory({
-    'category'     => 'plugin.trackselector',
+    'category'     => 'plugin.randomflow',
     'defaultLevel' => 'INFO',
 });
 

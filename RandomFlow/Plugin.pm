@@ -418,15 +418,47 @@ sub _handleJiveMenu {
             { player => 0, cmd => ['randomflow', 'setautomix', '0'] },
             { player => 0, cmd => ['randomflow', 'setautomix', '1'] },
         ] } },
-    }, {
-        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE'),
-        choiceStrings => [ Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_SONGS'), Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS') ],
-        selectedIndex => (($prefs->client($client)->get('mixMode') || 'songs') eq 'albums' ? 2 : 1),
-        actions       => { do => { choices => [
-            { player => 0, cmd => ['randomflow', 'setmixmode', 'songs'] },
-            { player => 0, cmd => ['randomflow', 'setmixmode', 'albums'] },
-        ] } },
     });
+
+    # Four plain action items, same shape SC's own Jive menu uses for its
+    # "Start New Chain"/"Replace Next Track"/"Play Mood Batch"/"Add Mood
+    # Batch" buttons (no choiceStrings, nextWindow at item level) - these
+    # reuse the exact same dispatches the Live page's own icon buttons call,
+    # so jivelite gets the same four actions Live already has.
+    push @items, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTMIX'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'startmix'] } },
+    }, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTBATCH'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'startbatch'] } },
+    }, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'replacenext'] } },
+    }, {
+        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_TOPUP'),
+        nextWindow => 'refresh',
+        actions    => { do => { player => 0, cmd => ['randomflow', 'topup'] } },
+    };
+
+    # Pool size ("ask size"/"Aanvraag", pref_poolSize on the settings page):
+    # same fixed-set-plus-current-value shape as Artist/Album Cooldown
+    # below. Steps mirror the settings page's own slider range (10-2000).
+    my $poolSize  = $prefs->client($client)->get('poolSize') || 300;
+    my %poolSet   = map { $_ => 1 } (10, 50, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000);
+    $poolSet{$poolSize} = 1;
+    my @poolSteps = sort { $a <=> $b } keys %poolSet;
+    my ($poolSel) = grep { $poolSteps[$_] == $poolSize } 0 .. $#poolSteps;
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_POOLSIZE'),
+        choiceStrings => [ map { "$_" } @poolSteps ],
+        selectedIndex => $poolSel + 1,
+        actions       => { do => { choices => [
+            map { +{ player => 0, cmd => ['randomflow', 'setpoolsize', $_] } } @poolSteps
+        ] } },
+    };
 
     # Filter choice: "no filter" plus every defined filter ('' = no filter, see _handleSetFilter)
     my $filters = $prefs->get('genreFilters') || [];
@@ -444,6 +476,16 @@ sub _handleJiveMenu {
             ] } },
         };
     }
+
+    push @items, {
+        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE'),
+        choiceStrings => [ Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_SONGS'), Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS') ],
+        selectedIndex => (($prefs->client($client)->get('mixMode') || 'songs') eq 'albums' ? 2 : 1),
+        actions       => { do => { choices => [
+            { player => 0, cmd => ['randomflow', 'setmixmode', 'songs'] },
+            { player => 0, cmd => ['randomflow', 'setmixmode', 'albums'] },
+        ] } },
+    };
 
     # Wobble in steps of 10 (0-100); an in-between value selects the nearest step
     my @wobbleSteps = map { $_ * 10 } 0 .. 10;
@@ -516,46 +558,6 @@ sub _handleJiveMenu {
         actions       => { do => { choices => [
             map { +{ player => 0, cmd => ['randomflow', 'setalbumcooldown', $_] } } @albumSteps
         ] } },
-    };
-
-    # Pool size ("ask size"/"Aanvraag", pref_poolSize on the settings page):
-    # same fixed-set-plus-current-value shape as Artist/Album Cooldown
-    # above. Steps mirror the settings page's own slider range (10-2000).
-    my $poolSize  = $prefs->client($client)->get('poolSize') || 300;
-    my %poolSet   = map { $_ => 1 } (10, 50, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000);
-    $poolSet{$poolSize} = 1;
-    my @poolSteps = sort { $a <=> $b } keys %poolSet;
-    my ($poolSel) = grep { $poolSteps[$_] == $poolSize } 0 .. $#poolSteps;
-    push @items, {
-        text          => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_POOLSIZE'),
-        choiceStrings => [ map { "$_" } @poolSteps ],
-        selectedIndex => $poolSel + 1,
-        actions       => { do => { choices => [
-            map { +{ player => 0, cmd => ['randomflow', 'setpoolsize', $_] } } @poolSteps
-        ] } },
-    };
-
-    # Four plain action items, same shape SC's own Jive menu uses for its
-    # "Start New Chain"/"Replace Next Track"/"Play Mood Batch"/"Add Mood
-    # Batch" buttons (no choiceStrings, nextWindow at item level) - these
-    # reuse the exact same dispatches the Live page's own icon buttons call,
-    # so jivelite gets the same four actions Live already has.
-    push @items, {
-        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTMIX'),
-        nextWindow => 'refresh',
-        actions    => { do => { player => 0, cmd => ['randomflow', 'startmix'] } },
-    }, {
-        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTBATCH'),
-        nextWindow => 'refresh',
-        actions    => { do => { player => 0, cmd => ['randomflow', 'startbatch'] } },
-    }, {
-        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_TOPUP'),
-        nextWindow => 'refresh',
-        actions    => { do => { player => 0, cmd => ['randomflow', 'topup'] } },
-    }, {
-        text       => Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK'),
-        nextWindow => 'refresh',
-        actions    => { do => { player => 0, cmd => ['randomflow', 'replacenext'] } },
     };
 
     my $cnt = 0;
