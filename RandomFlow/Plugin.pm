@@ -271,11 +271,11 @@ sub initPlugin {
     Slim::Control::Request::addDispatch(['randomflow', 'setalbumcooldown', '_value'], [1, 0, 0, \&_handleSetAlbumCooldown]);
     Slim::Control::Request::addDispatch(['randomflow', 'setpoolsize', '_value'], [1, 0, 0, \&_handleSetPoolSize]);
 
-    # Auto Mix <-> DSTM clash - not auto-resolved: DSTM's own check
-    # consistently beat Auto Mix's own top-up timer whenever DSTM was set
-    # to a RandomFlow provider, causing a real race. The Live page's Auto
-    # Mix info popover just warns that the two shouldn't both be active
-    # for the same player - the user picks one.
+    # Auto Mix <-> DSTM clash - now auto-resolved via disableDSTM() below,
+    # DSTM's own documented conflict-avoidance hook: DSTM's own check used
+    # to consistently beat Auto Mix's own top-up timer whenever DSTM was
+    # set to a RandomFlow provider, causing a real race. DSTM now skips
+    # itself entirely for a player while Auto Mix is running on it.
 
     Plugins::RandomFlow::MixRunner::init();
 
@@ -321,6 +321,20 @@ sub postinitPlugin {
             'PLUGIN_RANDOMFLOW_DSTM_BATCH', \&Plugins::RandomFlow::MixRunner::dstmHandlerBatch);
         $log->info('RandomFlow: registered as a Don\'t Stop The Music provider (Mix + Batch).');
     }
+}
+
+# DSTM's own documented conflict-avoidance hook (see
+# Slim::Plugin::DontStopTheMusic::Plugin's own header comment) - as long
+# as this returns true for a client, DSTM skips its own newsong/delete/
+# cant_open handling for it entirely, logging that it found us active
+# instead. Requires canConflictWithDSTM in install.xml to be checked at
+# all. Same sync-master-aware mixRunning read setAutoMix itself uses.
+sub disableDSTM {
+    my ($class, $client) = @_;
+    return 0 unless $client;
+
+    my $master = $client->can('master') ? $client->master : $client;
+    return $prefs->client($master)->get('mixRunning') ? 1 : 0;
 }
 
 

@@ -10,6 +10,7 @@
 	<homepageURL>https://github.com/HB64/LMS-RandomFlow</homepageURL>
 	<optionsURL>plugins/RandomFlow/settings/basic.html</optionsURL>
 	<defaultState>enabled</defaultState>
+	<canConflictWithDSTM>1</canConflictWithDSTM>
 	<targetApplication>
 		<id>Lyrion Music Server</id>
 		<maxVersion>*</maxVersion>

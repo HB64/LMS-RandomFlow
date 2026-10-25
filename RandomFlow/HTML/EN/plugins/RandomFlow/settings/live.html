@@ -783,9 +783,9 @@
 				<span class="tstInfoWrap">
 					<span class="tstInfoIcon" id="tstAutoMixInfoIcon">&#9432;</span>
 					<div class="tstInfoPopover">
-						Auto Mix and Lyrion's own Don't Stop The Music (DSTM) can clash if both try to queue tracks for this player at once. This is not handled automatically - if you use DSTM for this player, pick either Auto Mix or a DSTM provider, not both.
+						While Auto Mix is Enabled for this player, Lyrion's own Don't Stop The Music (DSTM) is automatically skipped for it - no need to disable a DSTM provider yourself.
 						<br><br>
-						While Auto Mix is Disabled, "Start New Mix" and the "Start RandomFlow Mix" Extras menu entry do nothing for this player - Auto Mix has to be Enabled first.
+						While Auto Mix is Disabled, "Start New Mix", "Replace Track", "Start Batch" and "Top Up" are all greyed out, and the "Start RandomFlow Mix" Extras menu entry does nothing for this player - Auto Mix has to be Enabled first.
 						<button type="button" onclick="this.parentElement.style.display='none'">Close</button>
 						<div style="clear:both;"></div>
 					</div>
@@ -2773,6 +2773,15 @@
 					// ajaxUpdate tick would.
 					document.getElementById('tstAutoMixLamp').style.background = (this.value === '1') ? '#3fb950' : '#f04747';
 					document.getElementById('tstAutoMixLabel').style.color = (this.value === '1') ? '' : '#f04747';
+					// Henk, 2026-10-25 - same immediate-feedback reason: this used to only
+					// grey/ungrey via tstMixSettingsRender's own rfMixOff lines, which only run
+					// on the next periodic/push refresh - leaving these 4 buttons showing the
+					// OLD Auto Mix state until the page was left and reopened.
+					var rfMixOffNow = (this.value !== '1');
+					document.getElementById('tstStartMixBtn').disabled = rfMixOffNow;
+					document.getElementById('tstReplaceNextBtn').disabled = rfMixOffNow;
+					document.getElementById('tstStartBatchBtn').disabled = rfMixOffNow;
+					document.getElementById('tstTopUpBtn').disabled = rfMixOffNow;
 				});
 			}
 			tstBindAutoMixSelect();
