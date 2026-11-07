@@ -242,6 +242,12 @@
 		[%# flow-root is required here too - without it, tstCurNextRow-s own         %]
 		[%# margin-bottom collapses straight through this wrapper-s boundary once    %]
 		[%# stuck, the exact bug SugarCube-s own comment on #sclv-top documents.     %]
+		[%# Henk, 07-11-2026 - kept low on purpose. position:sticky always forms its own   %]
+		[%# stacking context, so raising THIS z-index to beat an open .tstPanel/            %]
+		[%# #tstQueuePanel would drag the plain, non-positioned Now Playing/Up Next cards   %]
+		[%# up with it (#tstCurNextRow lives in this same wrapper) and they'd cover the     %]
+		[%# panel instead. tstMenuDropdown moved OUT of this wrapper entirely instead - see %]
+		[%# its own comment further down - so it never needs this element raised at all.    %]
 		#tstStickyTop { position:sticky; top:0; z-index:500; display:flow-root; background:var(--background-color, #fff); }
 		.tstAutoMixStatus { min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; }
 		.tstAutoMixLamp { width:10px; height:10px; border-radius:50%; display:inline-block; flex:none; }
@@ -253,7 +259,7 @@
 		[%# Playing/Coming Up Next block). Ported directly, renamed tst*.  %]
 		.tstMenuBtnWrap { position:relative; }
 		.tstMenuDropdown {
-			display:none; position:absolute; top:100%; left:0; z-index:1200;
+			display:none; position:fixed; z-index:1200;
 			min-width:200px; background:var(--background-color, #fff); color:var(--text-color, #333);
 			border:1px solid var(--list-item-border-color, rgba(128,128,128,0.3));
 			border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.35); overflow:hidden;
@@ -750,10 +756,6 @@
 				<button type="button" class="tstIconBtn" id="tstMenuBtn" aria-label="Menu" title="Menu" style="width:26px;height:26px;">
 					<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
 				</button>
-				<div id="tstMenuDropdown" class="tstMenuDropdown">
-					<a href="#" id="tstMenuRejectedLink">Rejected Tracks</a>
-					<a href="#" id="tstMenuHistoryLink">History</a>
-				</div>
 			</div>
 			[%# Auto Mix status - moved here from inside   %]
 			[%# #tstMixSettings, matching where SC-EXTMIP keeps its own       %]
@@ -900,6 +902,23 @@
 				</div>
 			</div>
 		</div>
+		</div>
+
+		[%# Henk, 07-11-2026 - moved OUT of .tstMenuBtnWrap/#tstStickyTop. That    %]
+		[%# wrapper is position:sticky, which always forms its own stacking        %]
+		[%# context (with or without an explicit z-index) - so nested inside it,   %]
+		[%# this dropdown's own z-index:1200 could never actually beat             %]
+		[%# .tstPanel/#tstQueuePanel (1150/1100): the WHOLE sticky subtree was      %]
+		[%# always compared as one group, at #tstStickyTop's own level. Raising     %]
+		[%# that level to win the comparison dragged the ordinary, non-positioned   %]
+		[%# Now Playing/Up Next cards up with it, so they started covering an open  %]
+		[%# panel instead. As a plain sibling out here it competes directly and     %]
+		[%# permanently, no toggling needed - position:fixed with top/left set by   %]
+		[%# tstMenuToggle() from #tstMenuBtn's own getBoundingClientRect(), same     %]
+		[%# approach tstPanelOpen/tstQueueToggle already use for their own panels.  %]
+		<div id="tstMenuDropdown" class="tstMenuDropdown">
+			<a href="#" id="tstMenuRejectedLink">Rejected Tracks</a>
+			<a href="#" id="tstMenuHistoryLink">History</a>
 		</div>
 
 		[%# Quick mix controls at the bottom of the page - started with      %]
@@ -1493,14 +1512,28 @@
 				tstPlayerCmd(['playlist', 'delete', index], tstQueueFetch);
 			}
 
-			// Step 7 - menu dropdown, same open/close pattern as SC-EXTMIP's
-			// own scLvMenuToggle/document-click-outside listener (sclv-menu
-			// CSS comment above has the full "why" for the menu+panel design
-			// itself).
+			// Step 7 - menu dropdown. Henk, 07-11-2026 - now a sibling OUT of
+			// #tstStickyTop entirely (see the HTML comment where it now sits),
+			// so position/size are computed from #tstMenuBtn's own
+			// getBoundingClientRect() exactly like tstPanelOpen/tstQueueToggle
+			// already do for their own floating panels - no CSS top/left on a
+			// now-removed parent to rely on, and no ancestor z-index games
+			// needed either: as a plain sibling its own z-index:1200 competes
+			// directly and permanently against .tstPanel/#tstQueuePanel.
 			function tstMenuToggle() {
 				var dd = document.getElementById('tstMenuDropdown');
-				if (!dd) { return; }
+				var btn = document.getElementById('tstMenuBtn');
+				if (!dd || !btn) { return; }
 				tstMenuOpen = !tstMenuOpen;
+				if (tstMenuOpen) {
+					var r = btn.getBoundingClientRect();
+					var vw = document.documentElement.clientWidth;
+					var margin = 8;
+					var left = Math.round(r.left);
+					left = Math.max(margin, Math.min(left, vw - margin - 200));
+					dd.style.top = Math.round(r.bottom + 6) + 'px';
+					dd.style.left = left + 'px';
+				}
 				dd.style.display = tstMenuOpen ? 'block' : 'none';
 			}
 			document.addEventListener('click', function(e) {
@@ -1814,6 +1847,33 @@
 			function tstMixSettingsFocused() {
 				var el = document.activeElement;
 				return !!(el && (el.closest('.tstAutoMixStatus') || el.closest('#tstMixSettings')));
+			}
+
+			// Banner message that hides itself again after a few seconds (real errors stay put).
+			var tstTempMsgTimer = null;
+			function tstShowTempMessage(msg) {
+				tstShowErrorBanner(msg);
+				if (tstTempMsgTimer) { clearTimeout(tstTempMsgTimer); }
+				tstTempMsgTimer = setTimeout(function() {
+					var banner = document.getElementById('tstJsErrorBanner');
+					var text = document.getElementById('tstJsErrorText');
+					if (banner && text && text.textContent === msg) { banner.style.display = 'none'; }
+				}, 6000);
+			}
+
+			// After a mix action: if the plugin refused it and Auto Mix is off, re-read the real
+			// state and say why on the page (the player-display message never reaches this page).
+			function tstCheckMixRefusal() {
+				tstJsonPost('/jsonrpc.js', { id: 1, method: 'slim.request', params: [PLAYER_ID, ['randomflow', 'mixsettings']] }).then(function(resp) { return resp.json(); }).then(function(data) {
+					var result = (data && data.result) || {};
+					if (result.mixRunning) { return; }
+					tstMixSettingsRender(result);
+					tstShowTempMessage(result.activeFilterId
+						? 'Auto Mix is disabled. Enable it first.'
+						: 'Auto Mix is off: no filter chosen for this player. Pick a filter first.');
+				}).catch(function(err) {
+					logLine('mix state check failed: ' + err.message);
+				});
 			}
 
 			function tstMixSettingsFetch() {
@@ -2646,7 +2706,7 @@
 			// the cometd subscription (step 1) reacts to the resulting
 			// playlist change on its own.
 			document.getElementById('tstStartMixBtn').addEventListener('click', function() {
-				tstPlayerCmd(['randomflow', 'startmix']);
+				tstPlayerCmd(['randomflow', 'startmix'], tstCheckMixRefusal);
 			});
 			// New 'randomflow replacenext' action (Plugin.pm/
 			// MixRunner::replaceNext) - see this
@@ -2767,7 +2827,27 @@
 			// after every rebuild, not just once at page load.
 			function tstBindAutoMixSelect() {
 				document.getElementById('tstAutoMixSelect').addEventListener('change', function() {
-					tstPlayerCmd(['randomflow', 'setautomix', this.value]);
+					var wantOn = (this.value === '1');
+					tstPlayerCmd(['randomflow', 'setautomix', this.value], function() {
+						// The plugin refuses to enable Auto Mix without a filter: re-read the real
+						// state and show why, instead of leaving the optimistic "Enabled" in place.
+						if (!wantOn) { return; }
+						tstJsonPost('/jsonrpc.js', { id: 1, method: 'slim.request', params: [PLAYER_ID, ['randomflow', 'mixsettings']] }).then(function(resp) { return resp.json(); }).then(function(data) {
+							var result = (data && data.result) || {};
+							var noFilterMsg = 'Auto Mix could not be enabled: no filter chosen for this player. Pick a filter first.';
+							if (!result.mixRunning) {
+								tstMixSettingsRender(result);
+								tstShowTempMessage(noFilterMsg);
+							} else {
+								// Enabled after all (e.g. a filter has been picked since): drop our own message.
+								var banner = document.getElementById('tstJsErrorBanner');
+								var text = document.getElementById('tstJsErrorText');
+								if (banner && text && text.textContent === noFilterMsg) { banner.style.display = 'none'; }
+							}
+						}).catch(function(err) {
+							logLine('auto mix state check failed: ' + err.message);
+						});
+					});
 					// Immediate feedback - this page has no periodic refresh to
 					// pick this up on its own the way SC-EXTMIP's own 2-second
 					// ajaxUpdate tick would.

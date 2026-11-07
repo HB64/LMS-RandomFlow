@@ -305,3 +305,19 @@ PLUGIN_RANDOMFLOW_JIVE_TOPUP
 PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK
 	EN	Replace Track
 	NL	Volgende track vervangen
+
+PLUGIN_RANDOMFLOW_MENU_AUTOMIX_ENABLE
+	EN	Enable Auto Mix
+	NL	Auto Mix aanzetten
+
+PLUGIN_RANDOMFLOW_MENU_AUTOMIX_DISABLE
+	EN	Disable Auto Mix
+	NL	Auto Mix uitzetten
+
+PLUGIN_RANDOMFLOW_MENU_AUTOMIX_ON
+	EN	Auto Mix is on
+	NL	Auto Mix staat aan
+
+PLUGIN_RANDOMFLOW_MENU_AUTOMIX_OFF
+	EN	Auto Mix is off
+	NL	Auto Mix staat uit

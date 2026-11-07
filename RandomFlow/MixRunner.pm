@@ -655,9 +655,14 @@ sub _warnNoFilter {
     my ($client) = @_;
     return unless $client;
 
+    # The 'jive' part makes this a popup in Jive-style apps such as SqueezeClient, which
+    # ignore messages without it.
+    my $line1 = $client->string('RANDOMFLOW');
+    my $line2 = $client->string('PLUGIN_RANDOMFLOW_NOFILTER_WARNING');
     $client->showBriefly(
-        { 'line1' => $client->string('RANDOMFLOW'),
-          'line2' => $client->string('PLUGIN_RANDOMFLOW_NOFILTER_WARNING') },
+        { 'line1' => $line1,
+          'line2' => $line2,
+          'jive'  => { 'type' => 'popupplay', 'text' => [ $line1, $line2 ], 'duration' => 5000 } },
         { 'duration' => 5, 'block' => 0 }
     );
 }
@@ -669,9 +674,12 @@ sub _warnAutoMixOff {
     my ($client) = @_;
     return unless $client;
 
+    my $line1 = $client->string('RANDOMFLOW');
+    my $line2 = $client->string('PLUGIN_RANDOMFLOW_AUTOMIXOFF_WARNING');
     $client->showBriefly(
-        { 'line1' => $client->string('RANDOMFLOW'),
-          'line2' => $client->string('PLUGIN_RANDOMFLOW_AUTOMIXOFF_WARNING') },
+        { 'line1' => $line1,
+          'line2' => $line2,
+          'jive'  => { 'type' => 'popupplay', 'text' => [ $line1, $line2 ], 'duration' => 5000 } },
         { 'duration' => 5, 'block' => 0 }
     );
 }

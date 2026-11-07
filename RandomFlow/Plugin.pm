@@ -78,6 +78,7 @@ package Plugins::RandomFlow::Plugin;
 
 use strict;
 use warnings;
+use base qw(Slim::Plugin::Base);
 
 use File::Basename;
 use lib dirname(__FILE__);
@@ -118,6 +119,7 @@ my @TEST_GENRE_LIST = (
 
 sub initPlugin {
     my $class = shift;
+    $class->SUPER::initPlugin(@_);
 
     if ( main::WEBUI ) {
         Plugins::RandomFlow::Settings::Basic->new;
@@ -410,6 +412,147 @@ sub _trackInfoStartMix {
             nextWindow => 'nowPlaying',
         } } },
     };
+}
+
+# Menu entry on classic (non-Jive) players such as the Boom and Classic. Same shape as SugarCube's
+# own: Slim::Plugin::Base lists the plugin in the player's Extras menu once setMode/getFunctions
+# exist. Actions go through the plugin's own CLI commands, so they behave like the Jive menu and
+# the Live page.
+sub getDisplayName { return 'RANDOMFLOW'; }
+
+sub getFunctions { return {}; }
+
+sub setMode {
+    my $class  = shift;
+    my $client = shift;
+    my $method = shift || '';
+
+    if ($method eq 'pop') {
+        Slim::Buttons::Common::popMode($client);
+        return;
+    }
+
+    my @entries = (
+        [
+            Slim::Utils::Strings::string(_autoMixRunning($client)
+                ? 'PLUGIN_RANDOMFLOW_MENU_AUTOMIX_DISABLE'
+                : 'PLUGIN_RANDOMFLOW_MENU_AUTOMIX_ENABLE'),
+            \&_menuToggleAutoMix,
+        ],
+        [
+            Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_STARTMIX'),
+            sub { $_[0]->execute(['randomflow', 'startmix']) },
+        ],
+        [
+            Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_REPLACETRACK'),
+            sub { $_[0]->execute(['randomflow', 'replacenext']) },
+        ],
+        [ Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_ACTIVEFILTER'), \&_menuPickFilter ],
+        [ Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE'),      \&_menuPickMixMode ],
+    );
+    my %handlerByName = map { $_->[0] => $_->[1] } @entries;
+
+    my %params = (
+        header   => '{RANDOMFLOW} {count}',
+        listRef  => [ map { $_->[0] } @entries ],
+        modeName => 'RANDOMFLOW',
+        onRight  => sub {
+            my ($client, $item) = @_;
+            my $handler = $handlerByName{$item} or return;
+            $handler->($client);
+            $client->update();
+        },
+    );
+    if ($method eq 'push') {
+        Slim::Buttons::Common::pushModeLeft($client, 'INPUT.Choice', \%params);
+    } else {
+        Slim::Buttons::Common::pushMode($client, 'INPUT.Choice', \%params);
+        $client->update();
+    }
+}
+
+# Auto Mix state lives on the sync-group master (see _handleMixSettings).
+sub _autoMixRunning {
+    my $client = shift;
+    my $master = $client->can('master') ? $client->master : $client;
+    return $prefs->client($master)->get('mixRunning') ? 1 : 0;
+}
+
+sub _menuToggleAutoMix {
+    my $client = shift;
+
+    my $wantOn = _autoMixRunning($client) ? 0 : 1;
+    $client->execute(['randomflow', 'setautomix', $wantOn]);
+
+    # A refusal (e.g. no filter) shows its own message; only confirm a change that went through.
+    my $nowOn = _autoMixRunning($client);
+    if ($nowOn == $wantOn) {
+        $client->showBriefly(
+            { 'line1' => Slim::Utils::Strings::string('RANDOMFLOW'),
+              'line2' => Slim::Utils::Strings::string($nowOn
+                  ? 'PLUGIN_RANDOMFLOW_MENU_AUTOMIX_ON'
+                  : 'PLUGIN_RANDOMFLOW_MENU_AUTOMIX_OFF') },
+            { 'duration' => 3, 'block' => 0 }
+        );
+    }
+}
+
+sub _menuPickFilter {
+    my $client = shift;
+
+    my $filters = $prefs->get('genreFilters') || [];
+    my @ids     = ('', map { $_->{id} } @$filters);
+    my @names   = (Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_JIVE_NOFILTER'), map { $_->{name} } @$filters);
+    my %idByName;
+    @idByName{@names} = @ids;
+
+    Slim::Buttons::Common::pushModeLeft($client, 'INPUT.Choice', {
+        header         => '{PLUGIN_RANDOMFLOW_ACTIVEFILTER}',
+        headerAddCount => 1,
+        listRef        => \@names,
+        modeName       => 'RANDOMFLOW',
+        overlayRef     => sub {
+            my ($client, $item) = @_;
+            my $active = $prefs->client($client)->get('activeFilterId') || '';
+            return [ undef, (($idByName{$item} // '') eq $active) ? '[X]' : '[ ]' ];
+        },
+        onRight        => sub {
+            my ($client, $item) = @_;
+            $client->execute(['randomflow', 'setfilter', $idByName{$item} // '']);
+            $client->update();
+        },
+    });
+    $client->update();
+}
+
+sub _menuPickMixMode {
+    my $client = shift;
+
+    my %valueByName = (
+        Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_SONGS')  => 'songs',
+        Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS') => 'albums',
+    );
+    my @names = (
+        Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_SONGS'),
+        Slim::Utils::Strings::string('PLUGIN_RANDOMFLOW_MIXMODE_ALBUMS'),
+    );
+
+    Slim::Buttons::Common::pushModeLeft($client, 'INPUT.Choice', {
+        header     => '{PLUGIN_RANDOMFLOW_MIXMODE}',
+        listRef    => \@names,
+        modeName   => 'RANDOMFLOW',
+        overlayRef => sub {
+            my ($client, $item) = @_;
+            my $current = $prefs->client($client)->get('mixMode') || 'songs';
+            return [ undef, (($valueByName{$item} // '') eq $current) ? '[X]' : '[ ]' ];
+        },
+        onRight    => sub {
+            my ($client, $item) = @_;
+            $client->execute(['randomflow', 'setmixmode', $valueByName{$item} // 'songs']);
+            $client->update();
+        },
+    });
+    $client->update();
 }
 
 sub _handleJiveMenu {
